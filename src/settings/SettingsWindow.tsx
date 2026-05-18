@@ -177,7 +177,10 @@ function SettingsWindow() {
   }
 
   return (
-    <div className="flex min-h-screen bg-white font-[system-ui] text-[#333333]">
+    <div
+      className="flex min-h-screen bg-white font-[system-ui] text-[#333333]"
+      style={{ colorScheme: 'light' }}
+    >
       <aside className="w-[160px] border-r border-[#ececec] bg-[#fafafa] px-3 py-4">
         <div className="space-y-1">
           {tabs.map((tab) => {
@@ -225,16 +228,26 @@ function SettingsWindow() {
           {activeTab === 'general' ? (
             <SettingsGroup>
               <SettingRow label="开机自启">
-                <Toggle
-                  checked={draft.launchAtStartup}
-                  onChange={(checked) => updateDraft({ launchAtStartup: checked })}
-                />
+                <SettingField hint="暂未接入系统开机启动，当前仅保存这个偏好。">
+                  <Toggle
+                    checked={draft.launchAtStartup}
+                    onChange={(checked) => updateDraft({ launchAtStartup: checked })}
+                  />
+                </SettingField>
               </SettingRow>
               <SettingRow label="启动时显示面板">
                 <Toggle
                   checked={draft.showPanelOnStartup}
                   onChange={(checked) => updateDraft({ showPanelOnStartup: checked })}
                 />
+              </SettingRow>
+              <SettingRow label="启动应用后自动关闭">
+                <SettingField hint="开启后，从主面板启动项目会自动收起面板。">
+                  <Toggle
+                    checked={draft.closePanelAfterLaunch}
+                    onChange={(checked) => updateDraft({ closePanelAfterLaunch: checked })}
+                  />
+                </SettingField>
               </SettingRow>
               <SettingRow label="排序方式">
                 <ChoiceGroup<SortMode>
@@ -339,25 +352,31 @@ function SettingsWindow() {
           {activeTab === 'hotkeys' ? (
             <SettingsGroup>
               <SettingRow label="主面板热键">
-                <HotkeyEditor
-                  value={draft.panelHotkey}
-                  placeholder="按下快捷键"
-                  onChange={(value) => updateHotkeyField('panelHotkey', value)}
-                />
+                <SettingField hint="桌面任意位置都可呼出主面板。">
+                  <HotkeyEditor
+                    value={draft.panelHotkey}
+                    placeholder="按下快捷键"
+                    onChange={(value) => updateHotkeyField('panelHotkey', value)}
+                  />
+                </SettingField>
               </SettingRow>
               <SettingRow label="待办热键">
-                <HotkeyEditor
-                  value={draft.todoHotkey}
-                  placeholder="按下快捷键"
-                  onChange={(value) => updateHotkeyField('todoHotkey', value)}
-                />
+                <SettingField hint="用于呼出或收起待办小窗。">
+                  <HotkeyEditor
+                    value={draft.todoHotkey}
+                    placeholder="按下快捷键"
+                    onChange={(value) => updateHotkeyField('todoHotkey', value)}
+                  />
+                </SettingField>
               </SettingRow>
               <SettingRow label="拾色器热键">
-                <HotkeyEditor
-                  value={draft.pickerHotkey}
-                  placeholder="按下快捷键"
-                  onChange={(value) => updateHotkeyField('pickerHotkey', value)}
-                />
+                <SettingField hint="用于呼出或收起拾色器小窗。">
+                  <HotkeyEditor
+                    value={draft.pickerHotkey}
+                    placeholder="按下快捷键"
+                    onChange={(value) => updateHotkeyField('pickerHotkey', value)}
+                  />
+                </SettingField>
               </SettingRow>
             </SettingsGroup>
           ) : null}
@@ -373,21 +392,25 @@ function SettingsWindow() {
                 </div>
               </SettingRow>
               <SettingRow label="更新源">
-                <ChoiceGroup<UpdateSource>
-                  value={draft.updateSource}
-                  options={[
-                    { value: 'gitee', label: 'Gitee' },
-                    { value: 'github', label: 'GitHub' },
-                  ]}
-                  onChange={(value) => updateDraft({ updateSource: value })}
-                />
+                <SettingField hint="更新检测还没接上，当前仅保存来源偏好。">
+                  <ChoiceGroup<UpdateSource>
+                    value={draft.updateSource}
+                    options={[
+                      { value: 'gitee', label: 'Gitee' },
+                      { value: 'github', label: 'GitHub' },
+                    ]}
+                    onChange={(value) => updateDraft({ updateSource: value })}
+                  />
+                </SettingField>
               </SettingRow>
               <SettingRow label="检查更新">
-                <ActionButton
-                  label={checkingUpdate ? '检查中...' : '检查更新'}
-                  disabled={checkingUpdate}
-                  onClick={() => void handleCheckUpdate()}
-                />
+                <SettingField hint="在线检查更新暂未接入。">
+                  <ActionButton
+                    label={checkingUpdate ? '检查中...' : '检查更新'}
+                    disabled={checkingUpdate}
+                    onClick={() => void handleCheckUpdate()}
+                  />
+                </SettingField>
               </SettingRow>
             </SettingsGroup>
           ) : null}
@@ -448,6 +471,21 @@ function SettingRow({
     <div className="flex min-h-[48px] items-center justify-between gap-6 border-b border-[#f0f0f0] px-5 py-2 last:border-b-0">
       <span className="shrink-0 text-[14px] text-[#333333]">{label}</span>
       <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  )
+}
+
+function SettingField({
+  children,
+  hint,
+}: {
+  children: ReactNode
+  hint?: string
+}) {
+  return (
+    <div className="flex min-w-0 flex-col items-end gap-1">
+      {children}
+      {hint ? <p className="text-right text-[12px] text-[#999999]">{hint}</p> : null}
     </div>
   )
 }
@@ -547,7 +585,7 @@ function NumberInput({
       max={max}
       value={value}
       onChange={(event) => onChange(clampNumber(Number(event.target.value || min), min, max))}
-      className="ml-auto h-9 w-[120px] rounded-[10px] border border-[#dddddd] px-3 text-right text-[13px] text-[#333333] outline-none"
+      className="ml-auto h-9 w-[120px] rounded-[10px] border border-[#dddddd] bg-white px-3 text-right text-[13px] text-[#333333] outline-none"
     />
   )
 }
@@ -567,7 +605,7 @@ function TextInput({
       value={value}
       placeholder={placeholder}
       onChange={(event) => onChange(event.target.value)}
-      className="h-9 min-w-[260px] flex-1 rounded-[10px] border border-[#dddddd] px-3 text-[13px] text-[#333333] outline-none placeholder:text-[#b0b0b0]"
+      className="h-9 min-w-[260px] flex-1 rounded-[10px] border border-[#dddddd] bg-white px-3 text-[13px] text-[#333333] outline-none placeholder:text-[#b0b0b0]"
     />
   )
 }
@@ -665,7 +703,7 @@ function HotkeyEditor({
           }
         }}
         onClick={beginListening}
-        className="h-9 w-[200px] cursor-pointer rounded-[10px] border px-3 text-[13px] text-[#333333] outline-none placeholder:text-[#b0b0b0]"
+        className="h-9 w-[200px] cursor-pointer rounded-[10px] border bg-white px-3 text-[13px] text-[#333333] outline-none placeholder:text-[#b0b0b0]"
         style={{
           borderColor: isListening ? '#333333' : '#dddddd',
           color: isListening ? '#333333' : value.value ? '#333333' : '#999999',
@@ -779,11 +817,11 @@ function tabTitle(tab: SettingsTab) {
 function tabDescription(tab: SettingsTab) {
   switch (tab) {
     case 'general':
-      return '管理启动行为、排序方式和数据备份。'
+      return '管理启动行为、面板关闭方式、排序方式和数据备份。'
     case 'appearance':
       return '调整主题、背景与主面板视觉细节。'
     case 'hotkeys':
-      return '为主面板和其它工具配置快捷键。'
+      return '为主面板、待办和拾色器配置快捷键。'
     case 'about':
       return '查看版本信息并设置更新源。'
   }

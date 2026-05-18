@@ -327,8 +327,12 @@ function LauncherPanel() {
     setLaunchingItemId(item.id)
     try {
       await launchItem(item.id)
-      const panelWindow = getCurrentWindow()
-      await panelWindow.hide()
+      if (settingsState?.closePanelAfterLaunch) {
+        const panelWindow = getCurrentWindow()
+        await panelWindow.hide()
+      }
+    } catch (caughtError) {
+      setFlash(caughtError instanceof Error ? `启动失败：${caughtError.message}` : '启动失败')
     } finally {
       setLaunchingItemId('')
     }
@@ -786,20 +790,30 @@ function SettingsEntryButton({ onClick }: { onClick: () => void }) {
         event.stopPropagation()
       }}
       onClick={onClick}
-      className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(15,23,42,0.10)] bg-white/70 text-[#666666] transition hover:bg-[#f0f0f0] hover:text-[#111111]"
+      className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(15,23,42,0.10)] bg-white/80 text-[#333333] shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition hover:border-[rgba(15,23,42,0.16)] hover:bg-[#f0f0f0] hover:text-[#111111] active:scale-95"
     >
       <svg
+        width="20"
+        height="20"
         viewBox="0 0 24 24"
-        className="h-4 w-4"
         fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
-        <circle cx="12" cy="12" r="3.25" />
-        <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1 1 0 0 1 0 1.4l-1.2 1.2a1 1 0 0 1-1.4 0l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a1 1 0 0 1-1 1h-1.8a1 1 0 0 1-1-1v-.2a1 1 0 0 0-.7-.9 1 1 0 0 0-1.1.2l-.1.1a1 1 0 0 1-1.4 0l-1.2-1.2a1 1 0 0 1 0-1.4l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a1 1 0 0 1-1-1v-1.8a1 1 0 0 1 1-1h.2a1 1 0 0 0 .9-.7 1 1 0 0 0-.2-1.1l-.1-.1a1 1 0 0 1 0-1.4L6 4.7a1 1 0 0 1 1.4 0l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V4a1 1 0 0 1 1-1h1.8a1 1 0 0 1 1 1v.2a1 1 0 0 0 .7.9 1 1 0 0 0 1.1-.2l.1-.1a1 1 0 0 1 1.4 0l1.2 1.2a1 1 0 0 1 0 1.4l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.2a1 1 0 0 1 1 1v1.8a1 1 0 0 1-1 1h-.2a1 1 0 0 0-.9.7Z" />
+        <path
+          d="M12 15.5C13.933 15.5 15.5 13.933 15.5 12C15.5 10.067 13.933 8.5 12 8.5C10.067 8.5 8.5 10.067 8.5 12C8.5 13.933 10.067 15.5 12 15.5Z"
+          stroke="#5B6673"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M18.4 13.5C18.48 13.02 18.48 12.98 18.48 12C18.48 11.02 18.48 10.98 18.4 10.5L20.15 9.15L18.35 6.05L16.25 6.9C15.55 6.35 15.05 6.05 14.2 5.75L13.9 3.5H10.1L9.8 5.75C8.95 6.05 8.45 6.35 7.75 6.9L5.65 6.05L3.85 9.15L5.6 10.5C5.52 10.98 5.52 11.02 5.52 12C5.52 12.98 5.52 13.02 5.6 13.5L3.85 14.85L5.65 17.95L7.75 17.1C8.45 17.65 8.95 17.95 9.8 18.25L10.1 20.5H13.9L14.2 18.25C15.05 17.95 15.55 17.65 16.25 17.1L18.35 17.95L20.15 14.85L18.4 13.5Z"
+          stroke="#5B6673"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
     </button>
   )

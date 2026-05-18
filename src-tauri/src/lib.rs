@@ -1,9 +1,6 @@
-use std::sync::{
-  atomic::{AtomicBool, Ordering},
-  Mutex,
-};
+use std::sync::Mutex;
 
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_global_shortcut::ShortcutEvent;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
@@ -11,11 +8,6 @@ mod models;
 mod storage;
 
 use crate::models::SettingsState;
-
-#[derive(Default)]
-struct PanelBehaviorState {
-  auto_hide_on_blur: AtomicBool,
-}
 
 #[derive(Default)]
 struct ShortcutBindingsState {
@@ -74,18 +66,57 @@ fn show_settings_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::
   Ok(())
 }
 
-fn set_panel_auto_hide<R: tauri::Runtime>(app: &tauri::AppHandle<R>, enabled: bool) {
-  app
-    .state::<PanelBehaviorState>()
-    .auto_hide_on_blur
-    .store(enabled, Ordering::Relaxed);
+fn show_todo_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
+  if let Some(todo_window) = app.get_webview_window("todo") {
+    todo_window.show()?;
+    todo_window.set_focus()?;
+    return Ok(());
+  }
+
+  WebviewWindowBuilder::new(app, "todo", WebviewUrl::App("index.html?window=todo".into()))
+    .title("Orvex 待办")
+    .inner_size(420.0, 560.0)
+    .min_inner_size(360.0, 420.0)
+    .resizable(true)
+    .maximizable(false)
+    .closable(true)
+    .decorations(true)
+    .visible(true)
+    .center()
+    .build()?
+    .set_focus()?;
+
+  Ok(())
 }
 
-fn show_launcher_panel<R: tauri::Runtime>(
-  app: &tauri::AppHandle<R>,
-  enable_auto_hide: bool,
-) -> tauri::Result<()> {
-  set_panel_auto_hide(app, enable_auto_hide);
+fn show_picker_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
+  if let Some(picker_window) = app.get_webview_window("picker") {
+    picker_window.show()?;
+    picker_window.set_focus()?;
+    return Ok(());
+  }
+
+  WebviewWindowBuilder::new(
+    app,
+    "picker",
+    WebviewUrl::App("index.html?window=picker".into()),
+  )
+    .title("Orvex 拾色器")
+    .inner_size(420.0, 520.0)
+    .min_inner_size(360.0, 420.0)
+    .resizable(true)
+    .maximizable(false)
+    .closable(true)
+    .decorations(true)
+    .visible(true)
+    .center()
+    .build()?
+    .set_focus()?;
+
+  Ok(())
+}
+
+fn show_launcher_panel<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
   if let Some(panel) = app.get_webview_window("launcher-panel") {
     panel.show()?;
     panel.set_focus()?;
@@ -97,16 +128,42 @@ fn show_launcher_panel<R: tauri::Runtime>(
 fn toggle_launcher_panel<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
   if let Some(panel) = app.get_webview_window("launcher-panel") {
     if panel.is_visible()? {
-      set_panel_auto_hide(app, false);
       panel.hide()?;
     } else {
-      set_panel_auto_hide(app, true);
       panel.show()?;
       panel.set_focus()?;
     }
   }
 
   Ok(())
+}
+
+fn toggle_todo_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
+  if let Some(todo_window) = app.get_webview_window("todo") {
+    if todo_window.is_visible()? {
+      todo_window.hide()?;
+    } else {
+      todo_window.show()?;
+      todo_window.set_focus()?;
+    }
+    return Ok(());
+  }
+
+  show_todo_window(app)
+}
+
+fn toggle_picker_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
+  if let Some(picker_window) = app.get_webview_window("picker") {
+    if picker_window.is_visible()? {
+      picker_window.hide()?;
+    } else {
+      picker_window.show()?;
+      picker_window.set_focus()?;
+    }
+    return Ok(());
+  }
+
+  show_picker_window(app)
 }
 
 fn assign_shortcut<R: tauri::Runtime>(
@@ -204,27 +261,7 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .on_window_event(|window, event| {
-      if window.label() == "launcher-panel" {
-        if let WindowEvent::Focused(focused) = event {
-          let auto_hide_enabled = window
-            .app_handle()
-            .state::<PanelBehaviorState>()
-            .auto_hide_on_blur
-            .load(Ordering::Relaxed);
-          if !focused && auto_hide_enabled {
-            window
-              .app_handle()
-              .state::<PanelBehaviorState>()
-              .auto_hide_on_blur
-              .store(false, Ordering::Relaxed);
-            let _ = window.hide();
-          }
-        }
-      }
-    })
     .setup(|app| {
-      app.manage(PanelBehaviorState::default());
       app.manage(ShortcutBindingsState::default());
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -249,9 +286,9 @@ pub fn run() {
             if bindings.panel == Some(event.id) {
               let _ = toggle_launcher_panel(app);
             } else if bindings.todo == Some(event.id) {
-              log::info!("todo shortcut pressed");
+              let _ = toggle_todo_window(app);
             } else if bindings.picker == Some(event.id) {
-              log::info!("picker shortcut pressed");
+              let _ = toggle_picker_window(app);
             }
           })
           .build(),
@@ -268,7 +305,7 @@ pub fn run() {
         let _ = main_window.hide();
       }
       if show_panel_on_startup {
-        show_launcher_panel(&app.handle(), false)?;
+        show_launcher_panel(&app.handle())?;
       }
       Ok(())
     })

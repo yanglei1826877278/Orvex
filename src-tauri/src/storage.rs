@@ -209,6 +209,7 @@ impl StorageState {
     let mut settings = self.settings.lock().map_err(|error| error.to_string())?;
     settings.launch_at_startup = payload.launch_at_startup;
     settings.show_panel_on_startup = payload.show_panel_on_startup;
+    settings.close_panel_after_launch = payload.close_panel_after_launch;
     settings.sort_mode = payload.sort_mode;
     settings.backup_retention_days = payload.backup_retention_days.clamp(1, 365);
     settings.theme = payload.theme;

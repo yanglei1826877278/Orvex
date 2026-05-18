@@ -52,6 +52,7 @@ pub struct LauncherState {
 pub struct SettingsState {
   pub launch_at_startup: bool,
   pub show_panel_on_startup: bool,
+  pub close_panel_after_launch: bool,
   pub sort_mode: SortMode,
   pub backup_retention_days: u32,
   pub theme: ThemeMode,
@@ -165,6 +166,7 @@ pub struct UpdateLauncherItemPayload {
 pub struct UpdateSettingsPayload {
   pub launch_at_startup: bool,
   pub show_panel_on_startup: bool,
+  pub close_panel_after_launch: bool,
   pub sort_mode: SortMode,
   pub backup_retention_days: u32,
   pub theme: ThemeMode,
@@ -542,6 +544,7 @@ impl SettingsState {
     Self {
       launch_at_startup: false,
       show_panel_on_startup: true,
+      close_panel_after_launch: false,
       sort_mode: SortMode::Custom,
       backup_retention_days: 7,
       theme: ThemeMode::Dark,

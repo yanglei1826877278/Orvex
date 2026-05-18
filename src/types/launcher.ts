@@ -46,6 +46,7 @@ export type HotkeySetting = {
 export type SettingsState = {
   launchAtStartup: boolean
   showPanelOnStartup: boolean
+  closePanelAfterLaunch: boolean
   sortMode: SortMode
   backupRetentionDays: number
   theme: ThemeMode
@@ -103,6 +104,7 @@ export type UpdateLauncherItemPayload = CreateLauncherItemPayload & {
 export type UpdateSettingsPayload = {
   launchAtStartup: boolean
   showPanelOnStartup: boolean
+  closePanelAfterLaunch: boolean
   sortMode: SortMode
   backupRetentionDays: number
   theme: ThemeMode
