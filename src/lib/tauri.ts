@@ -79,6 +79,10 @@ export async function launchLauncherItem(itemId: string) {
   return invoke<LaunchResult>('launch_item', { itemId })
 }
 
+export async function launchLauncherItemAsAdmin(itemId: string) {
+  return invoke<LaunchResult>('launch_item_as_admin', { itemId })
+}
+
 export async function openLauncherItemLocation(itemId: string) {
   return invoke<LaunchResult>('open_item_location', { itemId })
 }

@@ -17,6 +17,7 @@ import { useLauncherState } from '../hooks/useLauncherState'
 import {
   hideLauncherPanel,
   loadSettingsState,
+  launchLauncherItemAsAdmin,
   openSettingsWindow as openSettingsWindowCommand,
   toAssetUrl,
 } from '../lib/tauri'
@@ -47,6 +48,137 @@ type HoverCardState = {
   y: number
 }
 
+type SystemProjectDialogState = {
+  open: boolean
+  categoryId: string
+  categoryTitle: string
+}
+
+type SystemProjectOption = {
+  id: string
+  group: string
+  name: string
+  alias: string
+  kind: 'app' | 'url'
+  path: string
+  summary: string
+  accent: string
+  monogram: string
+}
+
+const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
+  {
+    id: 'sys-settings',
+    group: '系统应用',
+    name: 'Windows 设置',
+    alias: '系统设置',
+    kind: 'url',
+    path: 'ms-settings:',
+    summary: '快速打开 Windows 设置主页。',
+    accent: '#2563eb',
+    monogram: 'SE',
+  },
+  {
+    id: 'sys-calc',
+    group: '系统应用',
+    name: '计算器',
+    alias: 'Windows 计算器',
+    kind: 'app',
+    path: 'calc.exe',
+    summary: '执行基础与科学计算。',
+    accent: '#0ea5e9',
+    monogram: 'CA',
+  },
+  {
+    id: 'sys-notepad',
+    group: '系统应用',
+    name: '记事本',
+    alias: 'Windows 记事本',
+    kind: 'app',
+    path: 'notepad.exe',
+    summary: '快速记录文本和临时内容。',
+    accent: '#14b8a6',
+    monogram: 'NP',
+  },
+  {
+    id: 'sys-cmd',
+    group: '系统应用',
+    name: '命令提示符',
+    alias: 'Command Prompt',
+    kind: 'app',
+    path: 'cmd.exe',
+    summary: '打开经典命令行终端。',
+    accent: '#111827',
+    monogram: 'CM',
+  },
+  {
+    id: 'sys-powershell',
+    group: '系统应用',
+    name: 'PowerShell',
+    alias: 'Windows PowerShell',
+    kind: 'app',
+    path: 'powershell.exe',
+    summary: '打开 PowerShell 命令环境。',
+    accent: '#2563eb',
+    monogram: 'PS',
+  },
+  {
+    id: 'sys-regedit',
+    group: '系统应用',
+    name: '注册表编辑器',
+    alias: 'Registry Editor',
+    kind: 'app',
+    path: 'regedit.exe',
+    summary: '管理 Windows 注册表项目。',
+    accent: '#7c3aed',
+    monogram: 'RE',
+  },
+  {
+    id: 'sys-taskmgr',
+    group: '系统应用',
+    name: '任务管理器',
+    alias: 'Task Manager',
+    kind: 'app',
+    path: 'taskmgr.exe',
+    summary: '查看进程与系统资源占用。',
+    accent: '#f59e0b',
+    monogram: 'TM',
+  },
+  {
+    id: 'sys-control',
+    group: '系统应用',
+    name: '控制面板',
+    alias: 'Control Panel',
+    kind: 'app',
+    path: 'control.exe',
+    summary: '打开经典控制面板入口。',
+    accent: '#10b981',
+    monogram: 'CP',
+  },
+  {
+    id: 'sys-explorer',
+    group: '常用入口',
+    name: '资源管理器',
+    alias: 'File Explorer',
+    kind: 'app',
+    path: 'explorer.exe',
+    summary: '快速打开 Windows 资源管理器。',
+    accent: '#f97316',
+    monogram: 'EX',
+  },
+  {
+    id: 'sys-rdp',
+    group: '常用入口',
+    name: '远程桌面连接',
+    alias: 'Remote Desktop',
+    kind: 'app',
+    path: 'mstsc.exe',
+    summary: '发起远程桌面连接。',
+    accent: '#06b6d4',
+    monogram: 'RD',
+  },
+]
+
 function LauncherPanel() {
   const {
     launcherState,
@@ -54,6 +186,7 @@ function LauncherPanel() {
     storageDirectory,
     launchItem,
     addCategory,
+    addLauncherItem,
     addLauncherItemFromPath,
     editCategory,
     removeCategory,
@@ -88,6 +221,11 @@ function LauncherPanel() {
     item: null,
     x: 0,
     y: 0,
+  })
+  const [systemProjectDialog, setSystemProjectDialog] = useState<SystemProjectDialogState>({
+    open: false,
+    categoryId: '',
+    categoryTitle: '',
   })
   const [hoveredCategoryIndex, setHoveredCategoryIndex] = useState<number | null>(null)
   const [previewSettings, setPreviewSettings] = useState<SettingsState | null>(null)
@@ -693,6 +831,79 @@ function LauncherPanel() {
     }
   }
 
+  async function handleLaunchAsAdmin(item: LauncherItem) {
+    setLaunchingItemId(item.id)
+    try {
+      await launchLauncherItemAsAdmin(item.id)
+    } catch (caughtError) {
+      setFlash(
+        caughtError instanceof Error
+          ? `管理员启动失败：${caughtError.message}`
+          : '管理员启动失败',
+      )
+    } finally {
+      setLaunchingItemId('')
+    }
+  }
+
+  async function handleAddSystemProject(option: SystemProjectOption) {
+    if (!systemProjectDialog.categoryId) {
+      return
+    }
+
+    const duplicate = (launcherState?.items ?? []).some(
+      (item) =>
+        item.categoryId === systemProjectDialog.categoryId &&
+        item.path.toLowerCase() === option.path.toLowerCase(),
+    )
+
+    if (duplicate) {
+      setFlash(`${option.name} 已经在 ${systemProjectDialog.categoryTitle} 中了`)
+      return
+    }
+
+    try {
+      await addLauncherItem({
+        categoryId: systemProjectDialog.categoryId,
+        name: option.name,
+        alias: option.alias,
+        kind: option.kind,
+        summary: option.summary,
+        path: option.path,
+        hotkey: '',
+        usage: '系统项目',
+        monogram: option.monogram,
+        accent: option.accent,
+      })
+      setSystemProjectDialog({ open: false, categoryId: '', categoryTitle: '' })
+      setFlash(`${option.name} 已添加到 ${systemProjectDialog.categoryTitle}`)
+    } catch (caughtError) {
+      setFlash(caughtError instanceof Error ? caughtError.message : '添加系统项目失败')
+    }
+  }
+
+  function openSystemProjectDialog() {
+    const targetCategory: PanelCategory | undefined = itemMenu.item
+      ? categories.find((category) => category.id === itemMenu.item?.categoryId)
+      : activeCategory
+    const resolvedCategory =
+      targetCategory && !targetCategory.virtual
+        ? targetCategory
+        : categories.find((category) => category.id !== 'all')
+
+    if (!resolvedCategory) {
+      setFlash('请先创建一个可用分类')
+      return
+    }
+
+    setItemMenu({ open: false, x: 0, y: 0, item: null })
+    setSystemProjectDialog({
+      open: true,
+      categoryId: resolvedCategory.id,
+      categoryTitle: resolvedCategory.title,
+    })
+  }
+
   async function handleRemoveItem(item: LauncherItem) {
     try {
       await removeLauncherItem(item.id)
@@ -1082,7 +1293,14 @@ function LauncherPanel() {
 
         {itemMenu.open && itemMenu.item ? (
           <ContextMenu x={itemMenu.x} y={itemMenu.y}>
-            <ContextMenuItem label="管理员方式运行" disabled />
+            <ContextMenuItem
+              label="管理员方式运行"
+              disabled={itemMenu.item.kind !== 'app'}
+              onClick={() => {
+                void handleLaunchAsAdmin(itemMenu.item!)
+                setItemMenu({ open: false, x: 0, y: 0, item: null })
+              }}
+            />
             <ContextMenuItem
               label="打开文件所在位置"
               onClick={() => {
@@ -1091,7 +1309,10 @@ function LauncherPanel() {
               }}
             />
             <ContextMenuItem label="添加URL项目" disabled />
-            <ContextMenuItem label="添加系统项目" disabled />
+            <ContextMenuItem
+              label="添加系统项目"
+              onClick={openSystemProjectDialog}
+            />
             <ContextMenuItem label="资源管理器菜单" disabled />
             <ContextMenuItem label="属性" disabled />
             <ContextMenuItem
@@ -1103,6 +1324,26 @@ function LauncherPanel() {
               }}
             />
           </ContextMenu>
+        ) : null}
+
+        {systemProjectDialog.open ? (
+          <SystemProjectDialog
+            categoryTitle={systemProjectDialog.categoryTitle}
+            items={SYSTEM_PROJECT_OPTIONS}
+            existingPaths={
+              new Set(
+                (launcherState?.items ?? [])
+                  .filter((item) => item.categoryId === systemProjectDialog.categoryId)
+                  .map((item) => item.path.toLowerCase()),
+              )
+            }
+            onClose={() =>
+              setSystemProjectDialog({ open: false, categoryId: '', categoryTitle: '' })
+            }
+            onSelect={(option) => {
+              void handleAddSystemProject(option)
+            }}
+          />
         ) : null}
       </div>
     </WindowFrame>
@@ -1179,6 +1420,110 @@ function ItemHoverCard({
             <span className="text-[12px] font-medium text-[#667085]">使用次数</span>
             <span className="text-[14px] font-semibold text-[#101828]">{item.launchCount}</span>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SystemProjectDialog({
+  categoryTitle,
+  items,
+  existingPaths,
+  onClose,
+  onSelect,
+}: {
+  categoryTitle: string
+  items: SystemProjectOption[]
+  existingPaths: Set<string>
+  onClose: () => void
+  onSelect: (item: SystemProjectOption) => void
+}) {
+  const groupedItems = items.reduce<Record<string, SystemProjectOption[]>>((groups, item) => {
+    if (!groups[item.group]) {
+      groups[item.group] = []
+    }
+    groups[item.group].push(item)
+    return groups
+  }, {})
+
+  return (
+    <div
+      className="absolute inset-0 z-[120] flex items-center justify-center px-6 py-8"
+      style={{ background: 'rgba(7, 15, 28, 0.24)', backdropFilter: 'blur(8px)' }}
+    >
+      <div className="max-h-full w-full max-w-[780px] overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.42)] bg-[rgba(250,253,251,0.82)] shadow-[0_28px_80px_rgba(15,23,42,0.16)] backdrop-blur-[18px]">
+        <div className="flex items-center justify-between border-b border-[rgba(15,23,42,0.08)] px-6 py-4">
+          <div>
+            <p className="text-[12px] font-medium tracking-[0.16em] text-[#5f6b7a]">
+              系统项目
+            </p>
+            <h2 className="mt-1 text-[24px] font-semibold text-[#162033]">
+              添加到 {categoryTitle}
+            </h2>
+          </div>
+          <button
+            type="button"
+            className="rounded-[12px] border border-[rgba(15,23,42,0.08)] bg-white/70 px-4 py-2 text-[13px] text-[#334155] transition hover:bg-white"
+            onClick={onClose}
+          >
+            关闭
+          </button>
+        </div>
+
+        <div className="max-h-[68vh] overflow-y-auto px-6 py-5">
+          {Object.entries(groupedItems).map(([group, groupItems]) => (
+            <section key={group} className="mb-6 last:mb-0">
+              <div className="mb-3 flex items-center gap-3">
+                <h3 className="text-[15px] font-semibold text-[#132238]">{group}</h3>
+                <div className="h-px flex-1 bg-[rgba(37,99,235,0.18)]" />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {groupItems.map((item) => {
+                  const alreadyAdded = existingPaths.has(item.path.toLowerCase())
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      disabled={alreadyAdded}
+                      className={[
+                        'rounded-[18px] border px-4 py-4 text-left transition',
+                        alreadyAdded
+                          ? 'cursor-not-allowed border-[rgba(148,163,184,0.18)] bg-[rgba(255,255,255,0.45)] opacity-60'
+                          : 'border-[rgba(148,163,184,0.18)] bg-[rgba(255,255,255,0.72)] hover:-translate-y-0.5 hover:border-[rgba(37,99,235,0.32)] hover:bg-white',
+                      ].join(' ')}
+                      onClick={() => onSelect(item)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]"
+                          style={{ background: item.accent }}
+                        >
+                          {item.monogram}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-[17px] font-semibold text-[#102033]">
+                              {item.name}
+                            </p>
+                            {alreadyAdded ? (
+                              <span className="rounded-full bg-[rgba(15,23,42,0.08)] px-2 py-0.5 text-[10px] font-medium text-[#475569]">
+                                已添加
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="mt-1 text-[12px] text-[#64748b]">{item.alias}</p>
+                          <p className="mt-3 line-clamp-2 text-[12px] leading-5 text-[#425466]">
+                            {item.summary}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       </div>
     </div>

@@ -480,6 +480,7 @@ pub fn run() {
       storage::delete_category,
       storage::delete_launcher_item,
       storage::launch_item,
+      storage::launch_item_as_admin,
       storage::open_item_location
     ])
     .run(tauri::generate_context!())

@@ -214,6 +214,45 @@ impl StorageState {
     })
   }
 
+  pub fn launch_item_as_admin(&self, item_id: String) -> Result<LaunchResult, String> {
+    let mut state = self.state.lock().map_err(|error| error.to_string())?;
+    let item = state
+      .find_item(&item_id)
+      .ok_or_else(|| "启动项不存在。".to_string())?;
+
+    if !matches!(item.kind, LauncherItemKind::App) {
+      return Err("只有应用类型支持管理员方式运行。".into());
+    }
+
+    state.increment_launch_count(&item_id);
+    persist_json(&self.launcher_file, &*state).map_err(|error| error.to_string())?;
+    drop(state);
+
+    #[cfg(windows)]
+    {
+      let escaped_path = item.path.replace('\'', "''");
+      Command::new("powershell")
+        .args([
+          "-NoProfile",
+          "-Command",
+          &format!("Start-Process -FilePath '{escaped_path}' -Verb RunAs"),
+        ])
+        .spawn()
+        .map_err(|error| error.to_string())?;
+    }
+
+    #[cfg(not(windows))]
+    {
+      return Err("当前平台暂不支持管理员方式运行。".into());
+    }
+
+    Ok(LaunchResult {
+      item_id,
+      launched: true,
+      detail: "已尝试以管理员方式启动应用".into(),
+    })
+  }
+
   pub fn update_settings(&self, payload: UpdateSettingsPayload) -> Result<SettingsState, String> {
     let mut settings = self.settings.lock().map_err(|error| error.to_string())?;
     let background_image_path =
@@ -505,6 +544,14 @@ pub fn launch_item(
   storage: tauri::State<'_, StorageState>,
 ) -> Result<LaunchResult, String> {
   storage.launch_item(item_id)
+}
+
+#[tauri::command]
+pub fn launch_item_as_admin(
+  item_id: String,
+  storage: tauri::State<'_, StorageState>,
+) -> Result<LaunchResult, String> {
+  storage.launch_item_as_admin(item_id)
 }
 
 #[tauri::command]
