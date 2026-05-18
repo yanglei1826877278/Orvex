@@ -258,6 +258,15 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
   show_settings_window(&app).map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn hide_launcher_panel(app: tauri::AppHandle) -> Result<(), String> {
+  if let Some(panel) = app.get_webview_window("launcher-panel") {
+    panel.hide().map_err(|error| error.to_string())?;
+  }
+
+  Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -320,6 +329,7 @@ pub fn run() {
       storage::update_launcher_item,
       update_settings_state,
       open_settings_window,
+      hide_launcher_panel,
       storage::create_backup_archive,
       storage::restore_backup_archive,
       storage::delete_category,

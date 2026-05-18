@@ -12,7 +12,12 @@ import {
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { WindowFrame } from '../components/WindowFrame'
 import { useLauncherState } from '../hooks/useLauncherState'
-import { openSettingsWindow as openSettingsWindowCommand, toAssetUrl } from '../lib/tauri'
+import {
+  hideLauncherPanel,
+  loadSettingsState,
+  openSettingsWindow as openSettingsWindowCommand,
+  toAssetUrl,
+} from '../lib/tauri'
 import type { Category, LauncherItem } from '../types/launcher'
 
 type PanelCategory = Category & {
@@ -326,11 +331,27 @@ function LauncherPanel() {
   async function handleLaunch(item: LauncherItem) {
     setLaunchingItemId(item.id)
     try {
-      await launchItem(item.id)
-      if (settingsState?.closePanelAfterLaunch) {
-        const panelWindow = getCurrentWindow()
-        await panelWindow.hide()
+      const result = await launchItem(item.id)
+      let shouldClosePanel = settingsState?.closePanelAfterLaunch ?? false
+
+      try {
+        shouldClosePanel = (await loadSettingsState()).closePanelAfterLaunch
+      } catch (settingsError) {
+        console.warn('Failed to reload panel settings after launch', settingsError)
       }
+
+      if (shouldClosePanel) {
+        try {
+          await hideLauncherPanel()
+          return
+        } catch (hideError) {
+          console.warn('Failed to hide launcher panel after launch', hideError)
+          setFlash(`${item.name}${result.detail}，但自动关闭面板失败`)
+          return
+        }
+      }
+
+      setFlash(`${item.name}${result.detail}`)
     } catch (caughtError) {
       setFlash(caughtError instanceof Error ? `启动失败：${caughtError.message}` : '启动失败')
     } finally {

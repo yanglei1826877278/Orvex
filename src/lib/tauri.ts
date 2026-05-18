@@ -59,6 +59,10 @@ export async function openSettingsWindow() {
   return invoke<void>('open_settings_window')
 }
 
+export async function hideLauncherPanel() {
+  return invoke<void>('hide_launcher_panel')
+}
+
 export async function deleteCategory(categoryId: string) {
   return invoke<LauncherState>('delete_category', { categoryId })
 }
