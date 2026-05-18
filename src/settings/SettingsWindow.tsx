@@ -12,6 +12,7 @@ import {
 import { closeWindow, createBackupArchive, restoreBackupArchive } from '../lib/tauri'
 import { useLauncherState } from '../hooks/useLauncherState'
 import type {
+  AppearanceSettings,
   HotkeySetting,
   SettingsState,
   SortMode,
@@ -27,6 +28,8 @@ const tabs: Array<{ key: SettingsTab; label: string }> = [
   { key: 'hotkeys', label: '热键' },
   { key: 'about', label: '关于' },
 ]
+
+const fontColorPresets = ['#111111', '#333333', '#555555', '#1a56db', '#047857', '#b91c1c']
 
 function SettingsWindow() {
   const { settingsState, loading, error, updateSettings } = useLauncherState()
@@ -46,6 +49,39 @@ function SettingsWindow() {
   }, [settingsState])
 
   useEffect(() => {
+    if (!draft || !settingsState) {
+      return
+    }
+
+    const hasChanged =
+      draft.theme !== settingsState.theme ||
+      draft.backgroundType !== settingsState.backgroundType ||
+      draft.backgroundImagePath !== settingsState.backgroundImagePath ||
+      draft.frostedGlass !== settingsState.frostedGlass ||
+      draft.cardOpacity !== settingsState.cardOpacity ||
+      draft.backgroundOpacity !== settingsState.backgroundOpacity ||
+      draft.showIconTitles !== settingsState.showIconTitles ||
+      draft.appearance.category_font_size !== settingsState.appearance.category_font_size ||
+      draft.appearance.category_font_color !== settingsState.appearance.category_font_color ||
+      draft.appearance.item_font_size !== settingsState.appearance.item_font_size ||
+      draft.appearance.item_font_color !== settingsState.appearance.item_font_color
+
+    if (!hasChanged) {
+      return
+    }
+
+    void emit('orvex://appearance-preview', draft)
+  }, [draft, settingsState])
+
+  useEffect(() => {
+    return () => {
+      if (settingsState) {
+        void emit('orvex://appearance-preview', settingsState)
+      }
+    }
+  }, [settingsState])
+
+  useEffect(() => {
     if (!status) {
       return
     }
@@ -56,6 +92,20 @@ function SettingsWindow() {
 
   function updateDraft(partial: Partial<SettingsState>) {
     setDraft((current) => (current ? { ...current, ...partial } : current))
+  }
+
+  function updateAppearanceDraft(partial: Partial<AppearanceSettings>) {
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            appearance: {
+              ...current.appearance,
+              ...partial,
+            },
+          }
+        : current,
+    )
   }
 
   function updateHotkeyField(key: 'panelHotkey' | 'todoHotkey' | 'pickerHotkey', next: HotkeySetting) {
@@ -353,6 +403,32 @@ function SettingsWindow() {
                   onChange={(checked) => updateDraft({ showIconTitles: checked })}
                 />
               </SettingRow>
+              <SettingRow label="文字样式">
+                <div className="flex w-full flex-col gap-4 py-2">
+                  <TypographyControl
+                    label="分类列表文字"
+                    value={draft.appearance.category_font_size}
+                    min={12}
+                    max={18}
+                    color={draft.appearance.category_font_color}
+                    onSizeChange={(value) =>
+                      updateAppearanceDraft({ category_font_size: value })
+                    }
+                    onColorChange={(value) =>
+                      updateAppearanceDraft({ category_font_color: value })
+                    }
+                  />
+                  <TypographyControl
+                    label="应用名称文字"
+                    value={draft.appearance.item_font_size}
+                    min={11}
+                    max={16}
+                    color={draft.appearance.item_font_color}
+                    onSizeChange={(value) => updateAppearanceDraft({ item_font_size: value })}
+                    onColorChange={(value) => updateAppearanceDraft({ item_font_color: value })}
+                  />
+                </div>
+              </SettingRow>
             </SettingsGroup>
           ) : null}
 
@@ -429,7 +505,13 @@ function SettingsWindow() {
             <button
               type="button"
               className="h-10 rounded-[10px] border border-[#dddddd] px-5 text-[14px] text-[#555555] transition hover:bg-[#f7f7f7]"
-              onClick={() => void closeWindow()}
+              onClick={() => {
+                if (settingsState) {
+                  setDraft(settingsState)
+                  void emit('orvex://appearance-preview', settingsState)
+                }
+                void closeWindow()
+              }}
             >
               取消
             </button>
@@ -486,6 +568,61 @@ function SettingField({
     <div className="flex min-w-0 flex-col items-end gap-1">
       {children}
       {hint ? <p className="text-right text-[12px] text-[#999999]">{hint}</p> : null}
+    </div>
+  )
+}
+
+function TypographyControl({
+  label,
+  value,
+  min,
+  max,
+  color,
+  onSizeChange,
+  onColorChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  color: string
+  onSizeChange: (value: number) => void
+  onColorChange: (value: string) => void
+}) {
+  return (
+    <div className="rounded-[14px] border border-[#ededed] bg-[#fafafa] px-4 py-4">
+      <p className="text-[13px] font-semibold text-[#222222]">{label}</p>
+      <div className="mt-3 flex items-center gap-3">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={1}
+          value={value}
+          onChange={(event) => onSizeChange(clampNumber(Number(event.target.value), min, max))}
+          className="h-2 flex-1 accent-[#333333]"
+        />
+        <span className="w-12 text-right text-[12px] text-[#666666]">{value}px</span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {fontColorPresets.map((preset) => {
+          const isActive = normalizeHexColor(preset) === normalizeHexColor(color)
+          return (
+            <button
+              key={preset}
+              type="button"
+              aria-label={`选择颜色 ${preset}`}
+              title={preset}
+              onClick={() => onColorChange(preset)}
+              className="h-6 w-6 rounded-full transition"
+              style={{
+                backgroundColor: preset,
+                boxShadow: isActive ? `0 0 0 2px #ffffff, 0 0 0 4px ${preset}` : 'none',
+              }}
+            />
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -833,6 +970,10 @@ function clampNumber(value: number, min: number, max: number) {
   }
 
   return Math.min(max, Math.max(min, value))
+}
+
+function normalizeHexColor(value: string) {
+  return value.trim().toLowerCase()
 }
 
 export default SettingsWindow

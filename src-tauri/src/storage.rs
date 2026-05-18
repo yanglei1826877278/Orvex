@@ -218,6 +218,12 @@ impl StorageState {
     settings.frosted_glass = payload.frosted_glass;
     settings.card_opacity = payload.card_opacity.clamp(0, 100);
     settings.background_opacity = payload.background_opacity.clamp(0, 100);
+    settings.appearance.category_font_size = payload.appearance.category_font_size.clamp(12, 18);
+    settings.appearance.category_font_color =
+      normalize_hex_color(&payload.appearance.category_font_color, "#333333");
+    settings.appearance.item_font_size = payload.appearance.item_font_size.clamp(11, 16);
+    settings.appearance.item_font_color =
+      normalize_hex_color(&payload.appearance.item_font_color, "#333333");
     settings.show_icon_titles = payload.show_icon_titles;
     settings.panel_hotkey = payload.panel_hotkey;
     settings.todo_hotkey = payload.todo_hotkey;
@@ -300,6 +306,17 @@ fn cleanup_old_backups(backups_dir: &Path, retention_days: u32) -> Result<(), St
   }
 
   Ok(())
+}
+
+fn normalize_hex_color(value: &str, fallback: &str) -> String {
+  let trimmed = value.trim();
+  let candidate = trimmed.strip_prefix('#').unwrap_or(trimmed);
+
+  if candidate.len() == 6 && candidate.chars().all(|character| character.is_ascii_hexdigit()) {
+    return format!("#{}", candidate.to_ascii_lowercase());
+  }
+
+  fallback.to_string()
 }
 
 fn extract_icon_to_cache(

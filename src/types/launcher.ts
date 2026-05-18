@@ -43,6 +43,13 @@ export type HotkeySetting = {
   enabled: boolean
 }
 
+export type AppearanceSettings = {
+  category_font_size: number
+  category_font_color: string
+  item_font_size: number
+  item_font_color: string
+}
+
 export type SettingsState = {
   launchAtStartup: boolean
   showPanelOnStartup: boolean
@@ -55,6 +62,7 @@ export type SettingsState = {
   frostedGlass: boolean
   cardOpacity: number
   backgroundOpacity: number
+  appearance: AppearanceSettings
   showIconTitles: boolean
   panelHotkey: HotkeySetting
   todoHotkey: HotkeySetting
@@ -113,6 +121,7 @@ export type UpdateSettingsPayload = {
   frostedGlass: boolean
   cardOpacity: number
   backgroundOpacity: number
+  appearance: AppearanceSettings
   showIconTitles: boolean
   panelHotkey: HotkeySetting
   todoHotkey: HotkeySetting

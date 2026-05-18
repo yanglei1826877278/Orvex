@@ -10,6 +10,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react'
+import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { WindowFrame } from '../components/WindowFrame'
 import { useLauncherState } from '../hooks/useLauncherState'
@@ -19,7 +20,7 @@ import {
   openSettingsWindow as openSettingsWindowCommand,
   toAssetUrl,
 } from '../lib/tauri'
-import type { Category, LauncherItem } from '../types/launcher'
+import type { Category, LauncherItem, SettingsState } from '../types/launcher'
 
 type PanelCategory = Category & {
   count: number
@@ -62,22 +63,31 @@ function LauncherPanel() {
     y: 0,
     category: null,
   })
+  const [hoveredCategoryIndex, setHoveredCategoryIndex] = useState<number | null>(null)
+  const [previewSettings, setPreviewSettings] = useState<SettingsState | null>(null)
+  const categoryListRef = useRef<HTMLDivElement | null>(null)
   const categoryRailRef = useRef<HTMLElement | null>(null)
   const iconGridRef = useRef<HTMLDivElement | null>(null)
   const createCategoryInputRef = useRef<HTMLInputElement | null>(null)
   const renameCategoryInputRef = useRef<HTMLInputElement | null>(null)
   const renamingCategorySubmittingRef = useRef(false)
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
+  const effectiveSettings = previewSettings ?? settingsState
   const backgroundImageUrl =
-    settingsState?.backgroundType === 'image' && settingsState.backgroundImagePath
-      ? toAssetUrl(settingsState.backgroundImagePath)
+    effectiveSettings?.backgroundType === 'image' && effectiveSettings.backgroundImagePath
+      ? toAssetUrl(effectiveSettings.backgroundImagePath)
       : ''
 
-  const theme = settingsState?.theme ?? 'light'
-  const showIconTitles = settingsState?.showIconTitles ?? true
-  const rootBackgroundOpacity = (settingsState?.backgroundOpacity ?? 88) / 100
-  const sidebarOpacity = (settingsState?.cardOpacity ?? 92) / 100
-  const frostedGlassEnabled = settingsState?.frostedGlass !== false
+  const theme = effectiveSettings?.theme ?? 'light'
+  const showIconTitles = effectiveSettings?.showIconTitles ?? true
+  const rootBackgroundOpacity = (effectiveSettings?.backgroundOpacity ?? 88) / 100
+  const sidebarOpacity = (effectiveSettings?.cardOpacity ?? 92) / 100
+  const frostedGlassEnabled = effectiveSettings?.frostedGlass !== false
+  const appearanceSettings = effectiveSettings?.appearance
+  const categoryFontSize = appearanceSettings?.category_font_size ?? 14
+  const categoryFontColor = appearanceSettings?.category_font_color ?? '#333333'
+  const itemFontSize = appearanceSettings?.item_font_size ?? 13
+  const itemFontColor = appearanceSettings?.item_font_color ?? '#333333'
   const panelAppearance = useMemo(
     () =>
       buildPanelAppearance({
@@ -187,6 +197,60 @@ function LauncherPanel() {
       window.removeEventListener('click', close)
     }
   }, [sidebarMenu.open])
+
+  useEffect(() => {
+    const categoryList = categoryListRef.current
+    if (!categoryList) {
+      return
+    }
+
+    const handleMouseOver = (event: Event) => {
+      const target = event.target as HTMLElement | null
+      const item = target?.closest<HTMLElement>('[data-category-item="true"]')
+      if (!item || !categoryList.contains(item)) {
+        return
+      }
+
+      const nextIndex = Number(item.dataset.categoryIndex)
+      if (Number.isNaN(nextIndex)) {
+        return
+      }
+
+      setHoveredCategoryIndex((current) => (current === nextIndex ? current : nextIndex))
+    }
+
+    const handleMouseLeave = () => {
+      setHoveredCategoryIndex(null)
+    }
+
+    categoryList.addEventListener('mouseover', handleMouseOver)
+    categoryList.addEventListener('mouseleave', handleMouseLeave)
+
+    return () => {
+      categoryList.removeEventListener('mouseover', handleMouseOver)
+      categoryList.removeEventListener('mouseleave', handleMouseLeave)
+    }
+  }, [])
+
+  useEffect(() => {
+    let disposed = false
+    let unlisten: (() => void) | undefined
+
+    async function bindPreview() {
+      unlisten = await listen<SettingsState>('orvex://appearance-preview', (event) => {
+        if (!disposed) {
+          setPreviewSettings(event.payload)
+        }
+      })
+    }
+
+    void bindPreview()
+
+    return () => {
+      disposed = true
+      unlisten?.()
+    }
+  }, [])
 
   useEffect(() => {
     if (!flash) {
@@ -648,15 +712,18 @@ function LauncherPanel() {
             onContextMenuCapture={handleSidebarContextMenuCapture}
             onContextMenu={handleSidebarContextMenu}
           >
-            <div className="space-y-1">
-              {categories.map((category) => {
+            <div ref={categoryListRef} className="space-y-1">
+              {categories.map((category, index) => {
                 const isActive = category.id === activeCategory.id
                 const isRenaming = renamingCategoryId === category.id
+                const categoryFontSizeValue = getCategoryHoverFontSize(
+                  index === hoveredCategoryIndex,
+                  categoryFontSize,
+                )
+                const categoryTitleColor = isActive || isRenaming ? '#111' : index === hoveredCategoryIndex ? '#333' : categoryFontColor
+                const categoryTitleWeight = isActive || isRenaming || index === hoveredCategoryIndex ? 600 : 400
                 const rowClass = [
-                  'relative flex h-9 w-full items-center justify-between rounded-[12px] px-3 text-left text-[13px] transition-colors',
-                  isActive || isRenaming
-                    ? 'font-semibold text-[#111]'
-                    : 'font-normal text-[#444] hover:bg-transparent hover:text-[#333]',
+                  'relative flex h-10 w-full items-center justify-between rounded-[12px] px-3 text-left',
                 ].join(' ')
 
                 if (isRenaming) {
@@ -664,6 +731,7 @@ function LauncherPanel() {
                     <div
                       key={category.id}
                       data-category-item="true"
+                      data-category-index={index}
                       className={rowClass}
                     >
                       <span
@@ -679,7 +747,12 @@ function LauncherPanel() {
                           void handleRenameCategoryConfirm()
                         }}
                         disabled={editingCategoryId === category.id}
-                        className="w-full bg-transparent pl-1 pr-2 text-[13px] text-[#111] outline-none disabled:opacity-60"
+                        className="w-full bg-transparent pl-1 pr-2 text-[#111] outline-none disabled:opacity-60"
+                        style={{
+                          fontSize: `${categoryFontSizeValue}px`,
+                          fontWeight: 600,
+                          transition: 'font-size 150ms ease',
+                        }}
                       />
                       <span
                         className="rounded-full px-2 py-0.5 text-[10px] font-medium"
@@ -699,6 +772,7 @@ function LauncherPanel() {
                     key={category.id}
                     type="button"
                     data-category-item="true"
+                    data-category-index={index}
                     className={rowClass}
                     onClick={() => setSelectedCategoryId(category.id)}
                     onContextMenu={(event) => handleCategoryContextMenu(event, category)}
@@ -709,7 +783,17 @@ function LauncherPanel() {
                         style={{ backgroundColor: '#111' }}
                       />
                     ) : null}
-                    <span className="truncate pl-1">{category.title}</span>
+                    <span
+                      className="truncate pl-1"
+                      style={{
+                        color: categoryTitleColor,
+                        fontSize: `${categoryFontSizeValue}px`,
+                        fontWeight: categoryTitleWeight,
+                        transition: 'font-size 150ms ease',
+                      }}
+                    >
+                      {category.title}
+                    </span>
                     <span
                       className="rounded-full px-2 py-0.5 text-[10px] font-medium"
                       style={{
@@ -818,8 +902,12 @@ function LauncherPanel() {
                       <PanelIcon item={item} storageDirectory={storageDirectory} />
                       {showIconTitles ? (
                         <span
-                          className="mt-2 max-w-full whitespace-normal break-all text-center text-[12px] leading-4 text-[#222]"
-                          style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9)' }}
+                          className="mt-2 max-w-full whitespace-normal break-all text-center leading-4"
+                          style={{
+                            color: itemFontColor,
+                            fontSize: `${itemFontSize}px`,
+                            textShadow: '0 1px 2px rgba(255,255,255,0.9)',
+                          }}
                         >
                           {launchingItemId === item.id ? '启动中...' : item.name}
                         </span>
@@ -1064,6 +1152,10 @@ function formatClock(date: Date) {
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
   return `${hours}:${minutes}`
+}
+
+function getCategoryHoverFontSize(isHovered: boolean, baseFontSize: number) {
+  return isHovered ? 17 : baseFontSize
 }
 
 type PanelAppearanceOptions = {

@@ -61,11 +61,20 @@ pub struct SettingsState {
   pub frosted_glass: bool,
   pub card_opacity: u8,
   pub background_opacity: u8,
+  pub appearance: AppearanceSettings,
   pub show_icon_titles: bool,
   pub panel_hotkey: HotkeySetting,
   pub todo_hotkey: HotkeySetting,
   pub picker_hotkey: HotkeySetting,
   pub update_source: UpdateSource,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppearanceSettings {
+  pub category_font_size: u8,
+  pub category_font_color: String,
+  pub item_font_size: u8,
+  pub item_font_color: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -175,6 +184,7 @@ pub struct UpdateSettingsPayload {
   pub frosted_glass: bool,
   pub card_opacity: u8,
   pub background_opacity: u8,
+  pub appearance: AppearanceSettings,
   pub show_icon_titles: bool,
   pub panel_hotkey: HotkeySetting,
   pub todo_hotkey: HotkeySetting,
@@ -553,6 +563,12 @@ impl SettingsState {
       frosted_glass: true,
       card_opacity: 92,
       background_opacity: 88,
+      appearance: AppearanceSettings {
+        category_font_size: 14,
+        category_font_color: "#333333".into(),
+        item_font_size: 13,
+        item_font_color: "#333333".into(),
+      },
       show_icon_titles: true,
       panel_hotkey: HotkeySetting {
         value: "Ctrl+Q".into(),
@@ -574,6 +590,17 @@ impl SettingsState {
 impl Default for SettingsState {
   fn default() -> Self {
     Self::seed()
+  }
+}
+
+impl Default for AppearanceSettings {
+  fn default() -> Self {
+    Self {
+      category_font_size: 14,
+      category_font_color: "#333333".into(),
+      item_font_size: 13,
+      item_font_color: "#333333".into(),
+    }
   }
 }
 
