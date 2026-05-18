@@ -394,6 +394,7 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       storage::load_launcher_state,
       storage::load_settings_state,
+      storage::import_background_image,
       storage::get_storage_directory,
       storage::create_category,
       storage::create_launcher_item,

@@ -11,6 +11,7 @@ use tauri::{AppHandle, Manager};
 
 use crate::models::{
   BackupArchive,
+  BackgroundType,
   CreateCategoryPayload,
   CreateLauncherItemPayload,
   CreateLauncherItemFromPathPayload,
@@ -29,6 +30,7 @@ pub struct StorageState {
   launcher_file: PathBuf,
   settings_file: PathBuf,
   icons_dir: PathBuf,
+  backgrounds_dir: PathBuf,
   backups_dir: PathBuf,
   state: Mutex<LauncherState>,
   settings: Mutex<SettingsState>,
@@ -47,8 +49,10 @@ impl StorageState {
     let settings_file = data_dir.join("config.json");
     let legacy_settings_file = data_dir.join("settings.json");
     let icons_dir = data_dir.join("icons");
+    let backgrounds_dir = data_dir.join("backgrounds");
     let backups_dir = data_dir.join("backups");
     fs::create_dir_all(&icons_dir).map_err(|error| error.to_string())?;
+    fs::create_dir_all(&backgrounds_dir).map_err(|error| error.to_string())?;
     fs::create_dir_all(&backups_dir).map_err(|error| error.to_string())?;
     let state = if launcher_file.exists() {
       let raw = fs::read_to_string(&launcher_file).map_err(|error| error.to_string())?;
@@ -78,6 +82,7 @@ impl StorageState {
       launcher_file,
       settings_file,
       icons_dir,
+      backgrounds_dir,
       backups_dir,
       state: Mutex::new(state),
       settings: Mutex::new(settings),
@@ -96,6 +101,10 @@ impl StorageState {
   pub fn load_settings(&self) -> Result<SettingsState, String> {
     let settings = self.settings.lock().map_err(|error| error.to_string())?;
     Ok(settings.clone())
+  }
+
+  pub fn import_background_image(&self, source_path: String) -> Result<String, String> {
+    prepare_background_image_path(BackgroundType::Image, &source_path, &self.backgrounds_dir)
   }
 
   pub fn create_category(&self, payload: CreateCategoryPayload) -> Result<LauncherState, String> {
@@ -207,6 +216,8 @@ impl StorageState {
 
   pub fn update_settings(&self, payload: UpdateSettingsPayload) -> Result<SettingsState, String> {
     let mut settings = self.settings.lock().map_err(|error| error.to_string())?;
+    let background_image_path =
+      prepare_background_image_path(payload.background_type.clone(), &payload.background_image_path, &self.backgrounds_dir)?;
     settings.launch_at_startup = payload.launch_at_startup;
     settings.show_panel_on_startup = payload.show_panel_on_startup;
     settings.close_panel_after_launch = payload.close_panel_after_launch;
@@ -214,7 +225,7 @@ impl StorageState {
     settings.backup_retention_days = payload.backup_retention_days.clamp(1, 365);
     settings.theme = payload.theme;
     settings.background_type = payload.background_type;
-    settings.background_image_path = payload.background_image_path;
+    settings.background_image_path = background_image_path;
     settings.frosted_glass = payload.frosted_glass;
     settings.frosted_glass_strength = payload.frosted_glass_strength.clamp(0, 32);
     settings.sidebar_opacity = payload.sidebar_opacity.clamp(0, 100);
@@ -322,6 +333,42 @@ fn normalize_hex_color(value: &str, fallback: &str) -> String {
   fallback.to_string()
 }
 
+fn prepare_background_image_path(
+  background_type: BackgroundType,
+  raw_path: &str,
+  backgrounds_dir: &Path,
+) -> Result<String, String> {
+  if !matches!(background_type, BackgroundType::Image) {
+    return Ok(String::new());
+  }
+
+  let trimmed = raw_path.trim();
+  if trimmed.is_empty() {
+    return Ok(String::new());
+  }
+
+  let source_path = Path::new(trimmed);
+  if !source_path.exists() {
+    return Err("背景图片不存在，请重新选择。".into());
+  }
+
+  let extension = source_path
+    .extension()
+    .and_then(|value| value.to_str())
+    .map(|value| value.to_ascii_lowercase())
+    .unwrap_or_else(|| "png".to_string());
+  let target_path = backgrounds_dir.join(format!("panel-background.{extension}"));
+
+  if source_path == target_path {
+    return Ok(target_path.display().to_string());
+  }
+
+  fs::copy(source_path, &target_path)
+    .map_err(|error| format!("复制背景图片失败：{error}"))?;
+
+  Ok(target_path.display().to_string())
+}
+
 fn extract_icon_to_cache(
   item_id: &str,
   source_path: &str,
@@ -373,6 +420,14 @@ pub fn get_storage_directory(storage: tauri::State<'_, StorageState>) -> String 
 #[tauri::command]
 pub fn load_settings_state(storage: tauri::State<'_, StorageState>) -> Result<SettingsState, String> {
   storage.load_settings()
+}
+
+#[tauri::command]
+pub fn import_background_image(
+  source_path: String,
+  storage: tauri::State<'_, StorageState>,
+) -> Result<String, String> {
+  storage.import_background_image(source_path)
 }
 
 #[tauri::command]

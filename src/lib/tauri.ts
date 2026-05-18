@@ -21,6 +21,10 @@ export async function loadSettingsState() {
   return invoke<SettingsState>('load_settings_state')
 }
 
+export async function importBackgroundImage(sourcePath: string) {
+  return invoke<string>('import_background_image', { sourcePath })
+}
+
 export async function createCategory(payload: CreateCategoryPayload) {
   return invoke<LauncherState>('create_category', { payload })
 }

@@ -9,7 +9,12 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react'
-import { closeWindow, createBackupArchive, restoreBackupArchive } from '../lib/tauri'
+import {
+  closeWindow,
+  createBackupArchive,
+  importBackgroundImage,
+  restoreBackupArchive,
+} from '../lib/tauri'
 import { useLauncherState } from '../hooks/useLauncherState'
 import type {
   AppearanceSettings,
@@ -197,7 +202,8 @@ function SettingsWindow() {
         return
       }
 
-      updateDraft({ backgroundImagePath: selectedPath })
+      const importedPath = await importBackgroundImage(selectedPath)
+      updateDraft({ backgroundImagePath: importedPath })
       setStatus('已选择背景图片，保存后生效')
     } catch (caughtError) {
       setStatus(caughtError instanceof Error ? caughtError.message : '选择背景图片失败')
