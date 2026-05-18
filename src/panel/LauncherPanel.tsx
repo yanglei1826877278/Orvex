@@ -15,7 +15,6 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { WindowFrame } from '../components/WindowFrame'
 import { useLauncherState } from '../hooks/useLauncherState'
 import {
-  cacheIconFromSource,
   hideLauncherPanel,
   loadSettingsState,
   launchLauncherItemAsAdmin,
@@ -75,6 +74,7 @@ type SystemProjectOption = {
   kind: 'app' | 'url'
   path: string
   iconSourcePath?: string | null
+  staticIconPath?: string
   summary: string
   accent: string
   monogram: string
@@ -88,6 +88,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     alias: '系统设置',
     kind: 'url',
     path: 'ms-settings:',
+    staticIconPath: '/system-icons/settings.png?v=2',
     summary: '快速打开 Windows 设置主页。',
     accent: '#2563eb',
     monogram: 'SE',
@@ -100,6 +101,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     kind: 'app',
     path: 'calc.exe',
     iconSourcePath: 'C:\\Windows\\System32\\calc.exe',
+    staticIconPath: '/system-icons/calc.png?v=2',
     summary: '执行基础与科学计算。',
     accent: '#0ea5e9',
     monogram: 'CA',
@@ -112,6 +114,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     kind: 'app',
     path: 'notepad.exe',
     iconSourcePath: 'C:\\Windows\\System32\\notepad.exe',
+    staticIconPath: '/system-icons/notepad.png?v=2',
     summary: '快速记录文本和临时内容。',
     accent: '#14b8a6',
     monogram: 'NP',
@@ -124,6 +127,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     kind: 'app',
     path: 'cmd.exe',
     iconSourcePath: 'C:\\Windows\\System32\\cmd.exe',
+    staticIconPath: '/system-icons/cmd.png?v=2',
     summary: '打开经典命令行终端。',
     accent: '#111827',
     monogram: 'CM',
@@ -136,6 +140,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     kind: 'app',
     path: 'powershell.exe',
     iconSourcePath: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+    staticIconPath: '/system-icons/powershell.png?v=2',
     summary: '打开 PowerShell 命令环境。',
     accent: '#2563eb',
     monogram: 'PS',
@@ -148,6 +153,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     kind: 'app',
     path: 'regedit.exe',
     iconSourcePath: 'C:\\Windows\\regedit.exe',
+    staticIconPath: '/system-icons/regedit.png?v=2',
     summary: '管理 Windows 注册表项目。',
     accent: '#7c3aed',
     monogram: 'RE',
@@ -160,6 +166,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     kind: 'app',
     path: 'taskmgr.exe',
     iconSourcePath: 'C:\\Windows\\System32\\Taskmgr.exe',
+    staticIconPath: '/system-icons/taskmgr.png?v=2',
     summary: '查看进程与系统资源占用。',
     accent: '#f59e0b',
     monogram: 'TM',
@@ -172,6 +179,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     kind: 'app',
     path: 'control.exe',
     iconSourcePath: 'C:\\Windows\\System32\\control.exe',
+    staticIconPath: '/system-icons/control.png?v=2',
     summary: '打开经典控制面板入口。',
     accent: '#10b981',
     monogram: 'CP',
@@ -184,6 +192,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     kind: 'app',
     path: 'explorer.exe',
     iconSourcePath: 'C:\\Windows\\explorer.exe',
+    staticIconPath: '/system-icons/explorer.png?v=2',
     summary: '快速打开 Windows 资源管理器。',
     accent: '#f97316',
     monogram: 'EX',
@@ -196,6 +205,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     kind: 'app',
     path: 'mstsc.exe',
     iconSourcePath: 'C:\\Windows\\System32\\mstsc.exe',
+    staticIconPath: '/system-icons/mstsc.png?v=2',
     summary: '发起远程桌面连接。',
     accent: '#06b6d4',
     monogram: 'RD',
@@ -511,6 +521,7 @@ function LauncherPanel() {
     selectedCategoryId === 'all' || selectedCategoryExists ? selectedCategoryId : 'all'
   const activeCategory =
     categories.find((category) => category.id === effectiveCategoryId) ?? categories[0]
+  const shouldShowSearch = effectiveCategoryId === 'all'
 
   useEffect(() => {
     if (
@@ -527,6 +538,7 @@ function LauncherPanel() {
       const inCategory =
         effectiveCategoryId === 'all' || item.categoryId === effectiveCategoryId
       const inQuery =
+        !shouldShowSearch ||
         deferredQuery.length === 0 ||
         [item.name, item.alias, item.summary, item.path].some((field) =>
           field.toLowerCase().includes(deferredQuery),
@@ -544,7 +556,7 @@ function LauncherPanel() {
     }
 
     return filtered
-  }, [deferredQuery, effectiveCategoryId, launcherState, settingsState?.sortMode])
+  }, [deferredQuery, effectiveCategoryId, launcherState, settingsState?.sortMode, shouldShowSearch])
 
   useEffect(() => {
     let isMounted = true
@@ -1272,20 +1284,22 @@ function LauncherPanel() {
           </aside>
 
           <main className="flex h-full flex-col px-5 py-4">
-            <div>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="搜索或直接输入..."
-                className="w-full rounded-[16px] border px-4 py-3 text-sm outline-none transition placeholder:text-[#888]"
-                style={{
-                  background: panelAppearance.searchSurface,
-                  borderColor: panelAppearance.searchBorder,
-                  color: panelAppearance.textStrong,
-                  backdropFilter: frostedGlassEnabled ? `blur(${frostedGlassStrength}px)` : 'none',
-                }}
-              />
-            </div>
+            {shouldShowSearch ? (
+              <div>
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="搜索或直接输入..."
+                  className="w-full rounded-[16px] border px-4 py-3 text-sm outline-none transition placeholder:text-[#888]"
+                  style={{
+                    background: panelAppearance.searchSurface,
+                    borderColor: panelAppearance.searchBorder,
+                    color: panelAppearance.textStrong,
+                    backdropFilter: frostedGlassEnabled ? `blur(${frostedGlassStrength}px)` : 'none',
+                  }}
+                />
+              </div>
+            ) : null}
 
             {flash ? (
               <div
@@ -1329,8 +1343,8 @@ function LauncherPanel() {
                         const rect = event.currentTarget.getBoundingClientRect()
                         setHoverCard({
                           item,
-                          x: rect.right + 12,
-                          y: rect.top + rect.height / 2,
+                          x: rect.left + rect.width / 2,
+                          y: rect.bottom + 10,
                         })
                       }}
                       onMouseMove={(event) => {
@@ -1339,8 +1353,8 @@ function LauncherPanel() {
                           current.item?.id === item.id
                             ? {
                                 item,
-                                x: rect.right + 12,
-                                y: rect.top + rect.height / 2,
+                                x: rect.left + rect.width / 2,
+                                y: rect.bottom + 10,
                               }
                             : current,
                         )
@@ -1484,7 +1498,6 @@ function LauncherPanel() {
           <SystemProjectDialog
             categoryTitle={systemProjectDialog.categoryTitle}
             items={SYSTEM_PROJECT_OPTIONS}
-            storageDirectory={storageDirectory}
             existingPaths={
               new Set(
                 (launcherState?.items ?? [])
@@ -1568,8 +1581,8 @@ function ItemHoverCard({
     <div
       className="pointer-events-none fixed z-[95] w-[280px] overflow-hidden rounded-[18px] border border-[#d8dee8] bg-[#fdfefe] text-left shadow-[0_22px_50px_rgba(15,23,42,0.18)]"
       style={{
-        left: Math.min(x, window.innerWidth - 296),
-        top: Math.max(12, Math.min(y - 58, window.innerHeight - 154)),
+        left: Math.max(12, Math.min(x - 140, window.innerWidth - 296)),
+        top: Math.max(12, Math.min(y, window.innerHeight - 154)),
       }}
     >
       <div className="border-b border-[#e8edf4] bg-[#f6f8fb] px-4 py-2.5">
@@ -1602,55 +1615,16 @@ function ItemHoverCard({
 function SystemProjectDialog({
   categoryTitle,
   items,
-  storageDirectory,
   existingPaths,
   onClose,
   onSelect,
 }: {
   categoryTitle: string
   items: SystemProjectOption[]
-  storageDirectory: string
   existingPaths: Set<string>
   onClose: () => void
   onSelect: (item: SystemProjectOption) => void
 }) {
-  const [iconMap, setIconMap] = useState<Record<string, string>>({})
-
-  useEffect(() => {
-    let alive = true
-
-    async function loadIcons() {
-      const entries = await Promise.all(
-        items.map(async (item) => {
-          if (!item.iconSourcePath) {
-            return [item.id, ''] as const
-          }
-
-          try {
-            const iconPath = await cacheIconFromSource(item.iconSourcePath)
-            return [item.id, iconPath ?? ''] as const
-          } catch {
-            return [item.id, ''] as const
-          }
-        }),
-      )
-
-      if (!alive) {
-        return
-      }
-
-      setIconMap(
-        Object.fromEntries(entries.filter((entry) => entry[1])),
-      )
-    }
-
-    void loadIcons()
-
-    return () => {
-      alive = false
-    }
-  }, [items])
-
   const groupedItems = items.reduce<Record<string, SystemProjectOption[]>>((groups, item) => {
     if (!groups[item.group]) {
       groups[item.group] = []
@@ -1664,7 +1638,7 @@ function SystemProjectDialog({
       className="absolute inset-0 z-[120] flex items-center justify-center px-6 py-8"
       style={{ background: 'rgba(7, 15, 28, 0.24)', backdropFilter: 'blur(8px)' }}
     >
-      <div className="max-h-full w-full max-w-[780px] overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.42)] bg-[rgba(250,253,251,0.82)] shadow-[0_28px_80px_rgba(15,23,42,0.16)] backdrop-blur-[18px]">
+      <div className="max-h-full w-full max-w-[780px] overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.42)] bg-[rgba(250,253,251,0.82)] shadow-[0_28px_80px_rgba(15,23,42,0.16)] backdrop-blur-[18px]">
         <div className="flex items-center justify-between border-b border-[rgba(15,23,42,0.08)] px-6 py-4">
           <div>
             <p className="text-[12px] font-medium tracking-[0.16em] text-[#5f6b7a]">
@@ -1676,14 +1650,14 @@ function SystemProjectDialog({
           </div>
           <button
             type="button"
-            className="rounded-[12px] border border-[rgba(15,23,42,0.08)] bg-white/70 px-4 py-2 text-[13px] text-[#334155] transition hover:bg-white"
+            className="rounded-[9px] border border-[rgba(15,23,42,0.08)] bg-white/70 px-4 py-2 text-[13px] text-[#334155] transition hover:bg-white"
             onClick={onClose}
           >
             关闭
           </button>
         </div>
 
-        <div className="max-h-[68vh] overflow-y-auto px-6 py-5">
+        <div className="glass-scrollbar max-h-[68vh] overflow-y-auto px-6 py-5">
           {Object.entries(groupedItems).map(([group, groupItems]) => (
             <section key={group} className="mb-6 last:mb-0">
               <div className="mb-3 flex items-center gap-3">
@@ -1699,7 +1673,7 @@ function SystemProjectDialog({
                       type="button"
                       disabled={alreadyAdded}
                       className={[
-                        'rounded-[18px] border px-4 py-4 text-left transition',
+                        'rounded-[10px] border px-4 py-4 text-left transition',
                         alreadyAdded
                           ? 'cursor-not-allowed border-[rgba(148,163,184,0.18)] bg-[rgba(255,255,255,0.45)] opacity-60'
                           : 'border-[rgba(148,163,184,0.18)] bg-[rgba(255,255,255,0.72)] hover:-translate-y-0.5 hover:border-[rgba(37,99,235,0.32)] hover:bg-white',
@@ -1708,8 +1682,7 @@ function SystemProjectDialog({
                     >
                       <div className="flex items-start gap-3">
                         <SystemProjectIcon
-                          iconPath={iconMap[item.id] ?? ''}
-                          storageDirectory={storageDirectory}
+                          iconPath={item.staticIconPath ?? ''}
                           accent={item.accent}
                           fallback={SYSTEM_PROJECT_FALLBACK_ICONS[item.id] ?? item.monogram}
                         />
@@ -1744,22 +1717,18 @@ function SystemProjectDialog({
 
 function SystemProjectIcon({
   iconPath,
-  storageDirectory,
   accent,
   fallback,
 }: {
   iconPath: string
-  storageDirectory: string
   accent: string
   fallback: string
 }) {
-  if (iconPath && storageDirectory) {
+  if (iconPath) {
     return (
       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.12)]">
         <img
-          src={toAssetUrl(
-            `${storageDirectory.replace(/[\\/]+$/, '')}\\${iconPath.replace(/\//g, '\\')}`,
-          )}
+          src={iconPath}
           alt=""
           className="h-8 w-8 object-contain"
           draggable={false}
@@ -1800,7 +1769,7 @@ function UrlProjectDialog({
       className="absolute inset-0 z-[120] flex items-center justify-center px-6 py-8"
       style={{ background: 'rgba(7, 15, 28, 0.24)', backdropFilter: 'blur(8px)' }}
     >
-      <div className="w-full max-w-[560px] overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.42)] bg-[rgba(250,253,251,0.82)] shadow-[0_28px_80px_rgba(15,23,42,0.16)] backdrop-blur-[18px]">
+      <div className="w-full max-w-[560px] overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.42)] bg-[rgba(250,253,251,0.82)] shadow-[0_28px_80px_rgba(15,23,42,0.16)] backdrop-blur-[18px]">
         <div className="flex items-center justify-between border-b border-[rgba(15,23,42,0.08)] px-6 py-4">
           <div>
             <p className="text-[12px] font-medium tracking-[0.16em] text-[#5f6b7a]">URL 项目</p>
@@ -1810,21 +1779,21 @@ function UrlProjectDialog({
           </div>
           <button
             type="button"
-            className="rounded-[12px] border border-[rgba(15,23,42,0.08)] bg-white/70 px-4 py-2 text-[13px] text-[#334155] transition hover:bg-white"
+            className="rounded-[9px] border border-[rgba(15,23,42,0.08)] bg-white/70 px-4 py-2 text-[13px] text-[#334155] transition hover:bg-white"
             onClick={onClose}
           >
             关闭
           </button>
         </div>
 
-        <div className="space-y-4 px-6 py-6">
+        <div className="glass-scrollbar max-h-[60vh] space-y-4 overflow-y-auto px-6 py-6">
           <label className="block">
             <span className="mb-2 block text-[13px] font-medium text-[#324155]">项目名称</span>
             <input
               value={name}
               onChange={(event) => onNameChange(event.target.value)}
               placeholder="比如：OpenAI、公司后台、文档中心"
-              className="h-11 w-full rounded-[14px] border border-[rgba(148,163,184,0.28)] bg-white/80 px-4 text-[14px] text-[#162033] outline-none"
+              className="h-11 w-full rounded-[10px] border border-[rgba(148,163,184,0.28)] bg-white/80 px-4 text-[14px] text-[#162033] outline-none"
             />
           </label>
           <label className="block">
@@ -1833,7 +1802,7 @@ function UrlProjectDialog({
               value={address}
               onChange={(event) => onAddressChange(event.target.value)}
               placeholder="https://example.com"
-              className="h-11 w-full rounded-[14px] border border-[rgba(148,163,184,0.28)] bg-white/80 px-4 text-[14px] text-[#162033] outline-none"
+              className="h-11 w-full rounded-[10px] border border-[rgba(148,163,184,0.28)] bg-white/80 px-4 text-[14px] text-[#162033] outline-none"
             />
           </label>
         </div>
@@ -1841,14 +1810,14 @@ function UrlProjectDialog({
         <div className="flex items-center justify-end gap-3 border-t border-[rgba(15,23,42,0.08)] px-6 py-4">
           <button
             type="button"
-            className="rounded-[12px] border border-[rgba(15,23,42,0.08)] bg-white/70 px-4 py-2 text-[13px] text-[#334155] transition hover:bg-white"
+            className="rounded-[9px] border border-[rgba(15,23,42,0.08)] bg-white/70 px-4 py-2 text-[13px] text-[#334155] transition hover:bg-white"
             onClick={onClose}
           >
             取消
           </button>
           <button
             type="button"
-            className="rounded-[12px] bg-[#162033] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#0f172a]"
+            className="rounded-[9px] bg-[#162033] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#0f172a]"
             onClick={onSubmit}
           >
             添加项目

@@ -145,6 +145,33 @@ body,
     background: rgba(100, 116, 139, 0.38);
     background-clip: padding-box;
   }
+
+  .glass-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.52) rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-scrollbar::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+
+  .glass-scrollbar::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background: rgba(100, 116, 139, 0.42);
+    background-clip: padding-box;
+  }
+
+  .glass-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(71, 85, 105, 0.56);
+    background-clip: padding-box;
+  }
 }
 
 @layer utilities {
