@@ -58,7 +58,8 @@ function SettingsWindow() {
       draft.backgroundType !== settingsState.backgroundType ||
       draft.backgroundImagePath !== settingsState.backgroundImagePath ||
       draft.frostedGlass !== settingsState.frostedGlass ||
-      draft.cardOpacity !== settingsState.cardOpacity ||
+      draft.sidebarOpacity !== settingsState.sidebarOpacity ||
+      draft.contentOpacity !== settingsState.contentOpacity ||
       draft.backgroundOpacity !== settingsState.backgroundOpacity ||
       draft.showIconTitles !== settingsState.showIconTitles ||
       draft.appearance.category_font_size !== settingsState.appearance.category_font_size ||
@@ -128,7 +129,8 @@ function SettingsWindow() {
       await updateSettings({
         ...draft,
         backupRetentionDays: clampNumber(draft.backupRetentionDays, 1, 365),
-        cardOpacity: clampNumber(draft.cardOpacity, 0, 100),
+        sidebarOpacity: clampNumber(draft.sidebarOpacity, 0, 100),
+        contentOpacity: clampNumber(draft.contentOpacity, 0, 100),
         backgroundOpacity: clampNumber(draft.backgroundOpacity, 0, 100),
       })
       await emit('orvex://settings-updated')
@@ -213,7 +215,7 @@ function SettingsWindow() {
 
   if (loading || !draft) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white font-[system-ui] text-[#333333]">
+      <div className="flex h-screen items-center justify-center overflow-hidden bg-white font-[system-ui] text-[#333333]">
         <div className="w-[360px] rounded-[14px] border border-[#ececec] bg-white p-5 text-center shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
           <p className="text-[15px] font-semibold text-[#111111]">
             {error ? '设置载入失败' : '正在载入设置...'}
@@ -235,7 +237,7 @@ function SettingsWindow() {
 
   return (
     <div
-      className="flex min-h-screen bg-white font-[system-ui] text-[#333333]"
+      className="flex h-screen overflow-hidden bg-white font-[system-ui] text-[#333333]"
       style={{ colorScheme: 'light' }}
     >
       <aside className="w-[160px] border-r border-[#ececec] bg-[#fafafa] px-3 py-4">
@@ -264,7 +266,7 @@ function SettingsWindow() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 overflow-y-auto px-8 py-7">
+        <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-8 py-7">
           <div className="mb-6">
             <h1 className="text-[24px] font-semibold text-[#111111]">{tabTitle(activeTab)}</h1>
             <p className="mt-2 text-[13px] text-[#888888]">{tabDescription(activeTab)}</p>
@@ -385,10 +387,16 @@ function SettingsWindow() {
                   onChange={(checked) => updateDraft({ frostedGlass: checked })}
                 />
               </SettingRow>
-              <SettingRow label="卡片透明度">
+              <SettingRow label="左侧列表透明度">
                 <SliderInput
-                  value={draft.cardOpacity}
-                  onChange={(value) => updateDraft({ cardOpacity: value })}
+                  value={draft.sidebarOpacity}
+                  onChange={(value) => updateDraft({ sidebarOpacity: value })}
+                />
+              </SettingRow>
+              <SettingRow label="右侧内容透明度">
+                <SliderInput
+                  value={draft.contentOpacity}
+                  onChange={(value) => updateDraft({ contentOpacity: value })}
                 />
               </SettingRow>
               <SettingRow label="背景透明度">

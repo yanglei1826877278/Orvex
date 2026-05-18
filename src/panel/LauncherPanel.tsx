@@ -81,7 +81,8 @@ function LauncherPanel() {
   const theme = effectiveSettings?.theme ?? 'light'
   const showIconTitles = effectiveSettings?.showIconTitles ?? true
   const rootBackgroundOpacity = (effectiveSettings?.backgroundOpacity ?? 88) / 100
-  const sidebarOpacity = (effectiveSettings?.cardOpacity ?? 92) / 100
+  const sidebarOpacity = (effectiveSettings?.sidebarOpacity ?? 92) / 100
+  const contentOpacity = (effectiveSettings?.contentOpacity ?? 92) / 100
   const frostedGlassEnabled = effectiveSettings?.frostedGlass !== false
   const appearanceSettings = effectiveSettings?.appearance
   const categoryFontSize = appearanceSettings?.category_font_size ?? 14
@@ -92,11 +93,12 @@ function LauncherPanel() {
     () =>
       buildPanelAppearance({
         theme,
-        cardOpacity: sidebarOpacity,
+        sidebarOpacity,
+        contentOpacity,
         backgroundOpacity: rootBackgroundOpacity,
         hasImageBackground: Boolean(backgroundImageUrl),
       }),
-    [backgroundImageUrl, rootBackgroundOpacity, sidebarOpacity, theme],
+    [backgroundImageUrl, contentOpacity, rootBackgroundOpacity, sidebarOpacity, theme],
   )
   const panelCssVars = useMemo(
     () =>
@@ -716,14 +718,17 @@ function LauncherPanel() {
               {categories.map((category, index) => {
                 const isActive = category.id === activeCategory.id
                 const isRenaming = renamingCategoryId === category.id
-                const categoryFontSizeValue = getCategoryHoverFontSize(
-                  index === hoveredCategoryIndex,
+                const pianoMotion = getCategoryPianoMotion(
+                  index,
+                  hoveredCategoryIndex,
                   categoryFontSize,
                 )
-                const categoryTitleColor = isActive || isRenaming ? '#111' : index === hoveredCategoryIndex ? '#333' : categoryFontColor
+                const categoryFontSizeValue = pianoMotion.fontSize
+                const categoryTitleColor =
+                  isActive || isRenaming ? categoryFontColor : index === hoveredCategoryIndex ? '#333' : categoryFontColor
                 const categoryTitleWeight = isActive || isRenaming || index === hoveredCategoryIndex ? 600 : 400
                 const rowClass = [
-                  'relative flex h-10 w-full items-center justify-between rounded-[12px] px-3 text-left',
+                  'relative flex w-full items-center justify-between rounded-[12px] px-3 text-left transition-[height] duration-150 ease',
                 ].join(' ')
 
                 if (isRenaming) {
@@ -733,10 +738,11 @@ function LauncherPanel() {
                       data-category-item="true"
                       data-category-index={index}
                       className={rowClass}
+                      style={{ color: categoryFontColor, height: `${pianoMotion.height}px` }}
                     >
                       <span
                         className="absolute left-0 top-1.5 h-6 w-[2px]"
-                        style={{ backgroundColor: '#111' }}
+                        style={{ backgroundColor: categoryFontColor }}
                       />
                       <input
                         ref={renameCategoryInputRef}
@@ -747,8 +753,9 @@ function LauncherPanel() {
                           void handleRenameCategoryConfirm()
                         }}
                         disabled={editingCategoryId === category.id}
-                        className="w-full bg-transparent pl-1 pr-2 text-[#111] outline-none disabled:opacity-60"
+                        className="w-full bg-transparent pl-1 pr-2 outline-none disabled:opacity-60"
                         style={{
+                          color: categoryFontColor,
                           fontSize: `${categoryFontSizeValue}px`,
                           fontWeight: 600,
                           transition: 'font-size 150ms ease',
@@ -757,7 +764,7 @@ function LauncherPanel() {
                       <span
                         className="rounded-full px-2 py-0.5 text-[10px] font-medium"
                         style={{
-                          backgroundColor: '#111',
+                          backgroundColor: categoryFontColor,
                           color: '#fff',
                         }}
                       >
@@ -768,25 +775,27 @@ function LauncherPanel() {
                 }
 
                 return (
-                  <button
-                    key={category.id}
-                    type="button"
-                    data-category-item="true"
-                    data-category-index={index}
-                    className={rowClass}
-                    onClick={() => setSelectedCategoryId(category.id)}
-                    onContextMenu={(event) => handleCategoryContextMenu(event, category)}
-                  >
+                    <button
+                      key={category.id}
+                      type="button"
+                      data-category-item="true"
+                      data-category-index={index}
+                      className={rowClass}
+                      style={{ color: categoryTitleColor, height: `${pianoMotion.height}px` }}
+                      onClick={() => setSelectedCategoryId(category.id)}
+                      onContextMenu={(event) => handleCategoryContextMenu(event, category)}
+                    >
                     {isActive ? (
                       <span
                         className="absolute left-0 top-1.5 h-6 w-[2px]"
-                        style={{ backgroundColor: '#111' }}
+                        style={{ backgroundColor: categoryFontColor }}
                       />
                     ) : null}
                     <span
                       className="truncate pl-1"
                       style={{
                         color: categoryTitleColor,
+                        WebkitTextFillColor: categoryTitleColor,
                         fontSize: `${categoryFontSizeValue}px`,
                         fontWeight: categoryTitleWeight,
                         transition: 'font-size 150ms ease',
@@ -797,7 +806,7 @@ function LauncherPanel() {
                     <span
                       className="rounded-full px-2 py-0.5 text-[10px] font-medium"
                       style={{
-                        backgroundColor: isActive ? '#111' : '#eee',
+                        backgroundColor: isActive ? categoryFontColor : '#eee',
                         color: isActive ? '#fff' : '#999',
                       }}
                     >
@@ -1154,13 +1163,22 @@ function formatClock(date: Date) {
   return `${hours}:${minutes}`
 }
 
-function getCategoryHoverFontSize(isHovered: boolean, baseFontSize: number) {
-  return isHovered ? 17 : baseFontSize
+function getCategoryPianoMotion(
+  index: number,
+  hoveredIndex: number | null,
+  baseFontSize: number,
+) {
+  if (hoveredIndex === null || index !== hoveredIndex) {
+    return { fontSize: baseFontSize, height: 40 }
+  }
+
+  return { fontSize: Math.max(baseFontSize, 17), height: 48 }
 }
 
 type PanelAppearanceOptions = {
   theme: 'dark' | 'light'
-  cardOpacity: number
+  sidebarOpacity: number
+  contentOpacity: number
   backgroundOpacity: number
   hasImageBackground: boolean
 }
@@ -1208,16 +1226,18 @@ type PanelAppearance = {
 
 function buildPanelAppearance({
   theme,
-  cardOpacity,
+  sidebarOpacity,
+  contentOpacity,
   backgroundOpacity,
   hasImageBackground,
 }: PanelAppearanceOptions): PanelAppearance {
   const isDark = theme === 'dark'
-  const cardAlpha = clampOpacity(cardOpacity, 0, 1)
+  const sidebarAlpha = clampOpacity(sidebarOpacity, 0, 1)
+  const contentAlpha = clampOpacity(contentOpacity, 0, 1)
   const backgroundAlpha = clampOpacity(backgroundOpacity, 0, 1)
-  const softCardAlpha = clampOpacity(cardOpacity * 0.76, 0, 1)
-  const hoverAlpha = clampOpacity(cardOpacity * 0.9, 0, 1)
-  const borderAlpha = clampOpacity(cardOpacity * (isDark ? 0.18 : 0.14), 0, 1)
+  const softCardAlpha = clampOpacity(contentOpacity * 0.76, 0, 1)
+  const hoverAlpha = clampOpacity(contentOpacity * 0.9, 0, 1)
+  const borderAlpha = clampOpacity(contentOpacity * (isDark ? 0.18 : 0.14), 0, 1)
   const deep = [8, 14, 24] as const
   const deepSoft = [17, 26, 42] as const
   const light = [255, 255, 255] as const
@@ -1245,24 +1265,24 @@ function buildPanelAppearance({
       bodyBackground: 'transparent',
       baseLayer,
       overlayLayer,
-      sidebarSurface: toRgba(deepSoft, cardAlpha),
+      sidebarSurface: toRgba(deepSoft, sidebarAlpha),
       rowHoverBg: toRgba(light, hoverAlpha * 0.22),
       rowActiveBg: toRgba(light, hoverAlpha * 0.28),
       rowAccent: '#F8FBFF',
       badgeBg: toRgba(light, 0.1),
       badgeText: '#C8D2E4',
-      searchSurface: toRgba(deepSoft, cardAlpha),
+      searchSurface: toRgba(deepSoft, contentAlpha),
       searchBorder: toRgba(light, borderAlpha),
       searchPlaceholder: '#90A1BB',
       flashBg: toRgba(deep, 0.92),
       flashBorder: toRgba(light, 0.12),
       gridSurface: toRgba(deepSoft, softCardAlpha),
       gridBorder: toRgba(light, borderAlpha),
-      gridHoverBg: toRgba(light, cardAlpha * 0.16),
+      gridHoverBg: toRgba(light, contentAlpha * 0.16),
       itemBaseBg: toRgba(light, softCardAlpha * 0.56),
       itemHoverBg: toRgba(light, hoverAlpha * 0.36),
       overlayBg: toRgba(deep, 0.42),
-      overlayCardBg: toRgba(deepSoft, clampOpacity(cardAlpha + 0.06, 0, 1)),
+      overlayCardBg: toRgba(deepSoft, clampOpacity(contentAlpha + 0.06, 0, 1)),
       overlayCardBorder: toRgba(light, 0.14),
       timeText: '#95A5BE',
       textStrong: '#F5F8FD',
@@ -1270,7 +1290,7 @@ function buildPanelAppearance({
       textMuted: '#93A4BD',
       iconShellBg: 'rgba(255,255,255,0.94)',
       iconShellShadow: '0 10px 24px rgba(2, 6, 23, 0.24)',
-      settingsButtonBg: toRgba(deepSoft, cardAlpha),
+      settingsButtonBg: toRgba(deepSoft, contentAlpha),
       settingsButtonBorder: toRgba(light, 0.12),
       settingsButtonHoverBg: toRgba(light, 0.16),
       settingsButtonHoverBorder: toRgba(light, 0.22),
@@ -1287,24 +1307,24 @@ function buildPanelAppearance({
     bodyBackground: 'transparent',
     baseLayer,
     overlayLayer,
-    sidebarSurface: toRgba(light, cardAlpha),
+    sidebarSurface: toRgba(light, sidebarAlpha),
     rowHoverBg: toRgba(lightSoft, hoverAlpha * 0.82),
     rowActiveBg: toRgba(light, hoverAlpha * 0.96),
     rowAccent: '#333333',
     badgeBg: 'rgba(148,163,184,0.18)',
     badgeText: '#64748B',
-    searchSurface: toRgba(light, cardAlpha),
+    searchSurface: toRgba(light, contentAlpha),
     searchBorder: 'rgba(148,163,184,0.2)',
     searchPlaceholder: '#94A3B8',
     flashBg: 'rgba(15,23,42,0.94)',
     flashBorder: 'rgba(15,23,42,0.08)',
     gridSurface: toRgba(light, softCardAlpha),
     gridBorder: 'rgba(148,163,184,0.18)',
-    gridHoverBg: toRgba(lightSoft, cardAlpha * 0.72),
+    gridHoverBg: toRgba(lightSoft, contentAlpha * 0.72),
     itemBaseBg: toRgba(light, softCardAlpha * 0.78),
     itemHoverBg: toRgba(light, hoverAlpha),
     overlayBg: 'rgba(255,255,255,0.42)',
-    overlayCardBg: toRgba(light, clampOpacity(cardAlpha + 0.04, 0, 1)),
+    overlayCardBg: toRgba(light, clampOpacity(contentAlpha + 0.04, 0, 1)),
     overlayCardBorder: 'rgba(148,163,184,0.22)',
     timeText: '#8B98AD',
     textStrong: '#0F172A',
@@ -1312,7 +1332,7 @@ function buildPanelAppearance({
     textMuted: '#94A3B8',
     iconShellBg: 'rgba(255,255,255,0.94)',
     iconShellShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-    settingsButtonBg: toRgba(light, cardAlpha),
+    settingsButtonBg: toRgba(light, contentAlpha),
     settingsButtonBorder: 'rgba(15,23,42,0.08)',
     settingsButtonHoverBg: 'rgba(255,255,255,0.98)',
     settingsButtonHoverBorder: 'rgba(15,23,42,0.18)',
