@@ -683,8 +683,7 @@ function LauncherPanel() {
 
   async function handleOpenLocation(item: LauncherItem) {
     try {
-      const result = await openItemLocation(item.id)
-      setFlash(`${item.name}${result.detail}`)
+      await openItemLocation(item.id)
     } catch (caughtError) {
       setFlash(
         caughtError instanceof Error
