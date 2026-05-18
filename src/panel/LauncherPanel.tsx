@@ -43,6 +43,12 @@ type ItemMenuState = {
   item: LauncherItem | null
 }
 
+type PanelMenuState = {
+  open: boolean
+  x: number
+  y: number
+}
+
 type HoverCardState = {
   item: LauncherItem | null
   x: number
@@ -50,6 +56,12 @@ type HoverCardState = {
 }
 
 type SystemProjectDialogState = {
+  open: boolean
+  categoryId: string
+  categoryTitle: string
+}
+
+type UrlProjectDialogState = {
   open: boolean
   categoryId: string
   categoryTitle: string
@@ -216,6 +228,7 @@ function LauncherPanel() {
     removeCategory,
     removeLauncherItem,
     openItemLocation,
+    updateSettings,
   } = useLauncherState()
   const [selectedCategoryId, setSelectedCategoryId] = useState('all')
   const [query, setQuery] = useState('')
@@ -241,6 +254,11 @@ function LauncherPanel() {
     y: 0,
     item: null,
   })
+  const [panelMenu, setPanelMenu] = useState<PanelMenuState>({
+    open: false,
+    x: 0,
+    y: 0,
+  })
   const [hoverCard, setHoverCard] = useState<HoverCardState>({
     item: null,
     x: 0,
@@ -251,6 +269,13 @@ function LauncherPanel() {
     categoryId: '',
     categoryTitle: '',
   })
+  const [urlProjectDialog, setUrlProjectDialog] = useState<UrlProjectDialogState>({
+    open: false,
+    categoryId: '',
+    categoryTitle: '',
+  })
+  const [urlProjectName, setUrlProjectName] = useState('')
+  const [urlProjectAddress, setUrlProjectAddress] = useState('')
   const [hoveredCategoryIndex, setHoveredCategoryIndex] = useState<number | null>(null)
   const [previewSettings, setPreviewSettings] = useState<SettingsState | null>(null)
   const categoryListRef = useRef<HTMLDivElement | null>(null)
@@ -377,20 +402,21 @@ function LauncherPanel() {
   }, [renamingCategoryId])
 
   useEffect(() => {
-    if (!sidebarMenu.open && !itemMenu.open) {
+    if (!sidebarMenu.open && !itemMenu.open && !panelMenu.open) {
       return
     }
 
     const close = () => {
       setSidebarMenu({ open: false, x: 0, y: 0, category: null })
       setItemMenu({ open: false, x: 0, y: 0, item: null })
+      setPanelMenu({ open: false, x: 0, y: 0 })
     }
     window.addEventListener('click', close)
 
     return () => {
       window.removeEventListener('click', close)
     }
-  }, [itemMenu.open, sidebarMenu.open])
+  }, [itemMenu.open, panelMenu.open, sidebarMenu.open])
 
   useEffect(() => {
     const categoryList = categoryListRef.current
@@ -455,7 +481,7 @@ function LauncherPanel() {
     return () => window.clearTimeout(timer)
   }, [flash])
 
-  const categories = useMemo(() => {
+  const categories = useMemo<PanelCategory[]>(() => {
     const base = (launcherState?.categories ?? []).filter((category) => category.id !== 'all')
     const items = launcherState?.items ?? []
     const allCategory: PanelCategory = {
@@ -734,6 +760,7 @@ function LauncherPanel() {
     event.preventDefault()
     event.stopPropagation()
     setSidebarMenu({ open: false, x: 0, y: 0, category: null })
+    setPanelMenu({ open: false, x: 0, y: 0 })
     setItemMenu({
       open: true,
       x: event.clientX,
@@ -747,6 +774,27 @@ function LauncherPanel() {
     cancelRenamingCategory()
     setCreatingCategoryTitle('')
     setCreatingCategory(true)
+  }
+
+  function handlePanelContextMenu(event: ReactMouseEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement | null
+    if (!target) {
+      return
+    }
+
+    if (target.closest('[data-launcher-item="true"]')) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    closeSidebarMenu()
+    setItemMenu({ open: false, x: 0, y: 0, item: null })
+    setPanelMenu({
+      open: true,
+      x: event.clientX,
+      y: event.clientY,
+    })
   }
 
   function openRenameCategoryInput(category: PanelCategory) {
@@ -906,26 +954,91 @@ function LauncherPanel() {
     }
   }
 
-  function openSystemProjectDialog() {
-    const targetCategory: PanelCategory | undefined = itemMenu.item
-      ? categories.find((category) => category.id === itemMenu.item?.categoryId)
-      : activeCategory
-    const resolvedCategory =
-      targetCategory && !targetCategory.virtual
-        ? targetCategory
-        : categories.find((category) => category.id !== 'all')
+  function resolveEditableCategory(): PanelCategory | null {
+    const targetCategory: PanelCategory | undefined =
+      activeCategory && !activeCategory.virtual
+        ? activeCategory
+        : categories.find((category) => !category.virtual)
 
-    if (!resolvedCategory) {
+    if (!targetCategory) {
       setFlash('请先创建一个可用分类')
-      return
+      return null
     }
 
+    return targetCategory
+  }
+
+  function openSystemProjectDialog() {
+    const resolvedCategory = resolveEditableCategory()
+    if (!resolvedCategory) return
+
     setItemMenu({ open: false, x: 0, y: 0, item: null })
+    setPanelMenu({ open: false, x: 0, y: 0 })
     setSystemProjectDialog({
       open: true,
       categoryId: resolvedCategory.id,
       categoryTitle: resolvedCategory.title,
     })
+  }
+
+  function openUrlProjectDialog() {
+    const resolvedCategory = resolveEditableCategory()
+    if (!resolvedCategory) return
+
+    setPanelMenu({ open: false, x: 0, y: 0 })
+    setUrlProjectName('')
+    setUrlProjectAddress('')
+    setUrlProjectDialog({
+      open: true,
+      categoryId: resolvedCategory.id,
+      categoryTitle: resolvedCategory.title,
+    })
+  }
+
+  async function handleCreateUrlProject() {
+    const name = urlProjectName.trim()
+    const address = urlProjectAddress.trim()
+
+    if (!urlProjectDialog.categoryId || !name || !address) {
+      setFlash('请填写项目名称和 URL 地址')
+      return
+    }
+
+    try {
+      await addLauncherItem({
+        categoryId: urlProjectDialog.categoryId,
+        name,
+        alias: 'URL 项目',
+        kind: 'url',
+        summary: `打开 ${address}`,
+        path: address,
+        iconSourcePath: null,
+        hotkey: '',
+        usage: 'URL 项目',
+        monogram: name.slice(0, 2).toUpperCase(),
+        accent: '#2563eb',
+      })
+      setUrlProjectDialog({ open: false, categoryId: '', categoryTitle: '' })
+      setUrlProjectName('')
+      setUrlProjectAddress('')
+    } catch (caughtError) {
+      setFlash(caughtError instanceof Error ? caughtError.message : '添加 URL 项目失败')
+    }
+  }
+
+  async function handleToggleIconTitles() {
+    if (!settingsState) {
+      return
+    }
+
+    try {
+      await updateSettings({
+        ...settingsState,
+        showIconTitles: !showIconTitles,
+      })
+    } catch (caughtError) {
+      setFlash(caughtError instanceof Error ? caughtError.message : '切换图标标题失败')
+    }
   }
 
   async function handleRemoveItem(item: LauncherItem) {
@@ -1191,6 +1304,7 @@ function LauncherPanel() {
               <div
                 ref={iconGridRef}
                 className="h-full overflow-y-auto rounded-[16px] border pr-1 transition"
+                onContextMenu={handlePanelContextMenu}
                 style={{
                   background: dragOverIcons ? panelAppearance.gridHoverBg : panelAppearance.gridSurface,
                   borderColor: panelAppearance.gridBorder,
@@ -1350,6 +1464,22 @@ function LauncherPanel() {
           </ContextMenu>
         ) : null}
 
+        {panelMenu.open ? (
+          <ContextMenu x={panelMenu.x} y={panelMenu.y}>
+            <ContextMenuItem label="添加URL项目" onClick={openUrlProjectDialog} />
+            <ContextMenuItem label="添加系统项目" onClick={openSystemProjectDialog} />
+            <ContextMenuItem label="锁定主面板" disabled />
+            <ContextMenuItem
+              label={showIconTitles ? '隐藏图标标题' : '显示图标标题'}
+              onClick={() => {
+                void handleToggleIconTitles()
+                setPanelMenu({ open: false, x: 0, y: 0 })
+              }}
+            />
+            <ContextMenuItem label="批量操作" disabled />
+          </ContextMenu>
+        ) : null}
+
         {systemProjectDialog.open ? (
           <SystemProjectDialog
             categoryTitle={systemProjectDialog.categoryTitle}
@@ -1367,6 +1497,24 @@ function LauncherPanel() {
             }
             onSelect={(option) => {
               void handleAddSystemProject(option)
+            }}
+          />
+        ) : null}
+
+        {urlProjectDialog.open ? (
+          <UrlProjectDialog
+            categoryTitle={urlProjectDialog.categoryTitle}
+            name={urlProjectName}
+            address={urlProjectAddress}
+            onNameChange={setUrlProjectName}
+            onAddressChange={setUrlProjectAddress}
+            onClose={() => {
+              setUrlProjectDialog({ open: false, categoryId: '', categoryTitle: '' })
+              setUrlProjectName('')
+              setUrlProjectAddress('')
+            }}
+            onSubmit={() => {
+              void handleCreateUrlProject()
             }}
           />
         ) : null}
@@ -1626,6 +1774,87 @@ function SystemProjectIcon({
       style={{ background: accent }}
     >
       {fallback}
+    </div>
+  )
+}
+
+function UrlProjectDialog({
+  categoryTitle,
+  name,
+  address,
+  onNameChange,
+  onAddressChange,
+  onClose,
+  onSubmit,
+}: {
+  categoryTitle: string
+  name: string
+  address: string
+  onNameChange: (value: string) => void
+  onAddressChange: (value: string) => void
+  onClose: () => void
+  onSubmit: () => void
+}) {
+  return (
+    <div
+      className="absolute inset-0 z-[120] flex items-center justify-center px-6 py-8"
+      style={{ background: 'rgba(7, 15, 28, 0.24)', backdropFilter: 'blur(8px)' }}
+    >
+      <div className="w-full max-w-[560px] overflow-hidden rounded-[24px] border border-[rgba(255,255,255,0.42)] bg-[rgba(250,253,251,0.82)] shadow-[0_28px_80px_rgba(15,23,42,0.16)] backdrop-blur-[18px]">
+        <div className="flex items-center justify-between border-b border-[rgba(15,23,42,0.08)] px-6 py-4">
+          <div>
+            <p className="text-[12px] font-medium tracking-[0.16em] text-[#5f6b7a]">URL 项目</p>
+            <h2 className="mt-1 text-[24px] font-semibold text-[#162033]">
+              添加到 {categoryTitle}
+            </h2>
+          </div>
+          <button
+            type="button"
+            className="rounded-[12px] border border-[rgba(15,23,42,0.08)] bg-white/70 px-4 py-2 text-[13px] text-[#334155] transition hover:bg-white"
+            onClick={onClose}
+          >
+            关闭
+          </button>
+        </div>
+
+        <div className="space-y-4 px-6 py-6">
+          <label className="block">
+            <span className="mb-2 block text-[13px] font-medium text-[#324155]">项目名称</span>
+            <input
+              value={name}
+              onChange={(event) => onNameChange(event.target.value)}
+              placeholder="比如：OpenAI、公司后台、文档中心"
+              className="h-11 w-full rounded-[14px] border border-[rgba(148,163,184,0.28)] bg-white/80 px-4 text-[14px] text-[#162033] outline-none"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-[13px] font-medium text-[#324155]">URL 地址</span>
+            <input
+              value={address}
+              onChange={(event) => onAddressChange(event.target.value)}
+              placeholder="https://example.com"
+              className="h-11 w-full rounded-[14px] border border-[rgba(148,163,184,0.28)] bg-white/80 px-4 text-[14px] text-[#162033] outline-none"
+            />
+          </label>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t border-[rgba(15,23,42,0.08)] px-6 py-4">
+          <button
+            type="button"
+            className="rounded-[12px] border border-[rgba(15,23,42,0.08)] bg-white/70 px-4 py-2 text-[13px] text-[#334155] transition hover:bg-white"
+            onClick={onClose}
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            className="rounded-[12px] bg-[#162033] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#0f172a]"
+            onClick={onSubmit}
+          >
+            添加项目
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
