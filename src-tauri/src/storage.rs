@@ -3,18 +3,21 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
   sync::Mutex,
+  time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
 use crate::models::{
+  BackupArchive,
   CreateCategoryPayload,
   CreateLauncherItemPayload,
   CreateLauncherItemFromPathPayload,
   LauncherItemKind,
   LauncherState,
   LaunchResult,
+  RestoreBackupResult,
   SettingsState,
   UpdateSettingsPayload,
   UpdateCategoryPayload,
@@ -26,6 +29,7 @@ pub struct StorageState {
   launcher_file: PathBuf,
   settings_file: PathBuf,
   icons_dir: PathBuf,
+  backups_dir: PathBuf,
   state: Mutex<LauncherState>,
   settings: Mutex<SettingsState>,
 }
@@ -40,9 +44,12 @@ impl StorageState {
     fs::create_dir_all(&data_dir).map_err(|error| error.to_string())?;
 
     let launcher_file = data_dir.join("app_data.json");
-    let settings_file = data_dir.join("settings.json");
+    let settings_file = data_dir.join("config.json");
+    let legacy_settings_file = data_dir.join("settings.json");
     let icons_dir = data_dir.join("icons");
+    let backups_dir = data_dir.join("backups");
     fs::create_dir_all(&icons_dir).map_err(|error| error.to_string())?;
+    fs::create_dir_all(&backups_dir).map_err(|error| error.to_string())?;
     let state = if launcher_file.exists() {
       let raw = fs::read_to_string(&launcher_file).map_err(|error| error.to_string())?;
       serde_json::from_str(&raw).unwrap_or_else(|_| LauncherState::seed())
@@ -55,6 +62,11 @@ impl StorageState {
     let settings = if settings_file.exists() {
       let raw = fs::read_to_string(&settings_file).map_err(|error| error.to_string())?;
       serde_json::from_str(&raw).unwrap_or_else(|_| SettingsState::seed())
+    } else if legacy_settings_file.exists() {
+      let raw = fs::read_to_string(&legacy_settings_file).map_err(|error| error.to_string())?;
+      let migrated = serde_json::from_str(&raw).unwrap_or_else(|_| SettingsState::seed());
+      persist_json(&settings_file, &migrated).map_err(|error| error.to_string())?;
+      migrated
     } else {
       let seed = SettingsState::seed();
       persist_json(&settings_file, &seed).map_err(|error| error.to_string())?;
@@ -66,6 +78,7 @@ impl StorageState {
       launcher_file,
       settings_file,
       icons_dir,
+      backups_dir,
       state: Mutex::new(state),
       settings: Mutex::new(settings),
     })
@@ -194,9 +207,63 @@ impl StorageState {
 
   pub fn update_settings(&self, payload: UpdateSettingsPayload) -> Result<SettingsState, String> {
     let mut settings = self.settings.lock().map_err(|error| error.to_string())?;
+    settings.launch_at_startup = payload.launch_at_startup;
+    settings.show_panel_on_startup = payload.show_panel_on_startup;
+    settings.sort_mode = payload.sort_mode;
+    settings.backup_retention_days = payload.backup_retention_days.clamp(1, 365);
     settings.theme = payload.theme;
+    settings.background_type = payload.background_type;
+    settings.background_image_path = payload.background_image_path;
+    settings.frosted_glass = payload.frosted_glass;
+    settings.card_opacity = payload.card_opacity.clamp(0, 100);
+    settings.background_opacity = payload.background_opacity.clamp(0, 100);
+    settings.show_icon_titles = payload.show_icon_titles;
+    settings.panel_hotkey = payload.panel_hotkey;
+    settings.todo_hotkey = payload.todo_hotkey;
+    settings.picker_hotkey = payload.picker_hotkey;
+    settings.update_source = payload.update_source;
     persist_json(&self.settings_file, &*settings).map_err(|error| error.to_string())?;
     Ok(settings.clone())
+  }
+
+  pub fn create_backup(&self) -> Result<String, String> {
+    let launcher_state = self.load()?;
+    let settings_state = self.load_settings()?;
+    let archive = BackupArchive {
+      launcher_state,
+      settings_state: settings_state.clone(),
+    };
+    let timestamp = SystemTime::now()
+      .duration_since(UNIX_EPOCH)
+      .map_err(|error| error.to_string())?
+      .as_secs();
+    let backup_path = self
+      .backups_dir
+      .join(format!("orvex-backup-{timestamp}.json"));
+
+    persist_json(&backup_path, &archive).map_err(|error| error.to_string())?;
+    cleanup_old_backups(&self.backups_dir, settings_state.backup_retention_days)?;
+
+    Ok(backup_path.display().to_string())
+  }
+
+  pub fn restore_backup(&self, content: String) -> Result<RestoreBackupResult, String> {
+    let archive: BackupArchive =
+      serde_json::from_str(&content).map_err(|error| format!("备份文件无法解析：{error}"))?;
+
+    let mut launcher_state = self.state.lock().map_err(|error| error.to_string())?;
+    let mut settings_state = self.settings.lock().map_err(|error| error.to_string())?;
+
+    *launcher_state = archive.launcher_state;
+    *settings_state = archive.settings_state;
+
+    persist_json(&self.launcher_file, &*launcher_state).map_err(|error| error.to_string())?;
+    persist_json(&self.settings_file, &*settings_state).map_err(|error| error.to_string())?;
+
+    Ok(RestoreBackupResult {
+      launcher_state: launcher_state.clone(),
+      settings_state: settings_state.clone(),
+    })
   }
 }
 
@@ -209,6 +276,28 @@ fn persist_json<T: Serialize>(path: &Path, state: &T) -> Result<(), std::io::Err
     fs::remove_file(path)?;
   }
   fs::rename(temp_path, path)?;
+  Ok(())
+}
+
+fn cleanup_old_backups(backups_dir: &Path, retention_days: u32) -> Result<(), String> {
+  let retention = Duration::from_secs(u64::from(retention_days.max(1)) * 24 * 60 * 60);
+  let now = SystemTime::now();
+
+  for entry in fs::read_dir(backups_dir).map_err(|error| error.to_string())? {
+    let entry = entry.map_err(|error| error.to_string())?;
+    let metadata = entry.metadata().map_err(|error| error.to_string())?;
+    let modified = metadata.modified().map_err(|error| error.to_string())?;
+
+    let expired = now
+      .duration_since(modified)
+      .map(|age| age > retention)
+      .unwrap_or(false);
+
+    if expired {
+      fs::remove_file(entry.path()).map_err(|error| error.to_string())?;
+    }
+  }
+
   Ok(())
 }
 
@@ -306,11 +395,16 @@ pub fn update_launcher_item(
 }
 
 #[tauri::command]
-pub fn update_settings_state(
-  payload: UpdateSettingsPayload,
+pub fn create_backup_archive(storage: tauri::State<'_, StorageState>) -> Result<String, String> {
+  storage.create_backup()
+}
+
+#[tauri::command]
+pub fn restore_backup_archive(
+  content: String,
   storage: tauri::State<'_, StorageState>,
-) -> Result<SettingsState, String> {
-  storage.update_settings(payload)
+) -> Result<RestoreBackupResult, String> {
+  storage.restore_backup(content)
 }
 
 #[tauri::command]

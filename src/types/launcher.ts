@@ -22,6 +22,7 @@ export type LauncherItem = {
   usage: string
   monogram: string
   accent: string
+  launchCount: number
 }
 
 export type LauncherState = {
@@ -31,8 +32,33 @@ export type LauncherState = {
 
 export type ThemeMode = 'dark' | 'light'
 
+export type SortMode = 'custom' | 'usage' | 'name'
+
+export type BackgroundType = 'image' | 'solid'
+
+export type UpdateSource = 'gitee' | 'github'
+
+export type HotkeySetting = {
+  value: string
+  enabled: boolean
+}
+
 export type SettingsState = {
+  launchAtStartup: boolean
+  showPanelOnStartup: boolean
+  sortMode: SortMode
+  backupRetentionDays: number
   theme: ThemeMode
+  backgroundType: BackgroundType
+  backgroundImagePath: string
+  frostedGlass: boolean
+  cardOpacity: number
+  backgroundOpacity: number
+  showIconTitles: boolean
+  panelHotkey: HotkeySetting
+  todoHotkey: HotkeySetting
+  pickerHotkey: HotkeySetting
+  updateSource: UpdateSource
 }
 
 export type LaunchResult = {
@@ -75,5 +101,24 @@ export type UpdateLauncherItemPayload = CreateLauncherItemPayload & {
 }
 
 export type UpdateSettingsPayload = {
+  launchAtStartup: boolean
+  showPanelOnStartup: boolean
+  sortMode: SortMode
+  backupRetentionDays: number
   theme: ThemeMode
+  backgroundType: BackgroundType
+  backgroundImagePath: string
+  frostedGlass: boolean
+  cardOpacity: number
+  backgroundOpacity: number
+  showIconTitles: boolean
+  panelHotkey: HotkeySetting
+  todoHotkey: HotkeySetting
+  pickerHotkey: HotkeySetting
+  updateSource: UpdateSource
+}
+
+export type RestoreBackupResult = {
+  launcherState: LauncherState
+  settingsState: SettingsState
 }

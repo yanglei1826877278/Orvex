@@ -584,13 +584,13 @@ function App() {
   }
 
   async function handleThemeChange(nextTheme: ThemeMode) {
-    if (nextTheme === theme) {
+    if (nextTheme === theme || !settingsState) {
       return
     }
 
     setUpdatingTheme(true)
     try {
-      await updateSettings({ theme: nextTheme })
+      await updateSettings({ ...settingsState, theme: nextTheme })
       setFlash(nextTheme === 'dark' ? '已切换到黑色主题' : '已切换到白色主题')
     } catch (caughtError) {
       setFlash(caughtError instanceof Error ? caughtError.message : '切换主题失败')

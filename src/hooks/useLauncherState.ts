@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { listen } from '@tauri-apps/api/event'
 import {
   createCategory,
   createLauncherItemFromPath,
@@ -41,7 +42,8 @@ type LauncherStateResult = {
   removeLauncherItem: (itemId: string) => Promise<void>
   launchItem: (itemId: string) => Promise<LaunchResult>
   openItemLocation: (itemId: string) => Promise<LaunchResult>
-  updateSettings: (payload: UpdateSettingsPayload) => Promise<void>
+  updateSettings: (payload: UpdateSettingsPayload) => Promise<SettingsState>
+  reloadState: () => Promise<void>
 }
 
 export function useLauncherState(): LauncherStateResult {
@@ -107,6 +109,36 @@ export function useLauncherState(): LauncherStateResult {
     }
   }, [])
 
+  useEffect(() => {
+    let disposed = false
+    let unlisteners: Array<() => void> = []
+
+    async function bindEvents() {
+      const listeners = await Promise.all([
+        listen('orvex://settings-updated', () => {
+          void refreshState()
+        }),
+        listen('orvex://launcher-state-updated', () => {
+          void refreshState()
+        }),
+      ])
+
+      if (disposed) {
+        listeners.forEach((unlisten) => unlisten())
+        return
+      }
+
+      unlisteners = listeners
+    }
+
+    void bindEvents()
+
+    return () => {
+      disposed = true
+      unlisteners.forEach((unlisten) => unlisten())
+    }
+  }, [])
+
   async function addCategory(payload: CreateCategoryPayload) {
     const nextState = await createCategory(payload)
     setLauncherState(nextState)
@@ -156,6 +188,7 @@ export function useLauncherState(): LauncherStateResult {
   async function updateSettings(payload: UpdateSettingsPayload) {
     const nextSettings = await updateSettingsState(payload)
     setSettingsState(nextSettings)
+    return nextSettings
   }
 
   return {
@@ -174,5 +207,6 @@ export function useLauncherState(): LauncherStateResult {
     launchItem,
     openItemLocation,
     updateSettings,
+    reloadState: refreshState,
   }
 }

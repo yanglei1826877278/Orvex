@@ -12,7 +12,7 @@ import {
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { WindowFrame } from '../components/WindowFrame'
 import { useLauncherState } from '../hooks/useLauncherState'
-import { toAssetUrl } from '../lib/tauri'
+import { openSettingsWindow as openSettingsWindowCommand, toAssetUrl } from '../lib/tauri'
 import type { Category, LauncherItem } from '../types/launcher'
 
 type PanelCategory = Category & {
@@ -30,6 +30,7 @@ type SidebarMenuState = {
 function LauncherPanel() {
   const {
     launcherState,
+    settingsState,
     storageDirectory,
     launchItem,
     addCategory,
@@ -61,13 +62,25 @@ function LauncherPanel() {
   const renameCategoryInputRef = useRef<HTMLInputElement | null>(null)
   const renamingCategorySubmittingRef = useRef(false)
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
+  const backgroundImageUrl =
+    settingsState?.backgroundType === 'image' && settingsState.backgroundImagePath
+      ? toAssetUrl(settingsState.backgroundImagePath)
+      : ''
+
+  const theme = settingsState?.theme ?? 'light'
+  const showIconTitles = settingsState?.showIconTitles ?? true
+  const rootBackgroundOpacity = (settingsState?.backgroundOpacity ?? 88) / 100
+  const sidebarOpacity = (settingsState?.cardOpacity ?? 92) / 100
 
   useEffect(() => {
     const previousTheme = document.documentElement.dataset.theme
     const previousBodyBackground = document.body.style.background
 
-    document.documentElement.dataset.theme = 'light'
-    document.body.style.background = 'rgba(255,255,255,0.92)'
+    document.documentElement.dataset.theme = theme
+    document.body.style.background =
+      theme === 'dark'
+        ? `rgba(15,23,42,${Math.max(rootBackgroundOpacity, 0.4)})`
+        : `rgba(255,255,255,${Math.max(rootBackgroundOpacity, 0.4)})`
 
     return () => {
       if (previousTheme) {
@@ -77,7 +90,7 @@ function LauncherPanel() {
       }
       document.body.style.background = previousBodyBackground
     }
-  }, [])
+  }, [rootBackgroundOpacity, theme])
 
   useEffect(() => {
     if (!creatingCategory) {
@@ -171,7 +184,7 @@ function LauncherPanel() {
 
   const visibleItems = useMemo(() => {
     const source = launcherState?.items ?? []
-    return source.filter((item) => {
+    const filtered = source.filter((item) => {
       const inCategory =
         effectiveCategoryId === 'all' || item.categoryId === effectiveCategoryId
       const inQuery =
@@ -181,7 +194,18 @@ function LauncherPanel() {
         )
       return inCategory && inQuery
     })
-  }, [deferredQuery, effectiveCategoryId, launcherState])
+
+    const sortMode = settingsState?.sortMode ?? 'custom'
+    if (sortMode === 'usage') {
+      return [...filtered].sort((left, right) => right.launchCount - left.launchCount)
+    }
+
+    if (sortMode === 'name') {
+      return [...filtered].sort((left, right) => left.name.localeCompare(right.name, 'zh-CN'))
+    }
+
+    return filtered
+  }, [deferredQuery, effectiveCategoryId, launcherState, settingsState?.sortMode])
 
   useEffect(() => {
     let isMounted = true
@@ -497,12 +521,46 @@ function LauncherPanel() {
   const timeText = useClock()
 
   return (
-    <WindowFrame title="Orvex 面板" subtitle="快速启动" compact variant="light">
-      <div className="relative h-[calc(100vh-44px)] w-full overflow-hidden bg-[rgba(255,255,255,0.88)] font-[system-ui] text-slate-900 backdrop-blur-[20px]">
+    <WindowFrame
+      title="Orvex 面板"
+      subtitle="快速启动"
+      compact
+      variant={theme}
+      headerLeftAddon={
+        <SettingsEntryButton
+          onClick={() => {
+            void openSettingsWindowCommand().catch((error) => {
+              setFlash(error instanceof Error ? error.message : '打开设置窗口失败')
+            })
+          }}
+        />
+      }
+    >
+      <div
+        className={[
+          'relative h-[calc(100vh-44px)] w-full overflow-hidden font-[system-ui] text-slate-900',
+          settingsState?.frostedGlass === false ? '' : 'backdrop-blur-[20px]',
+        ].join(' ')}
+        style={{
+          background:
+            theme === 'dark'
+              ? `rgba(15,23,42,${rootBackgroundOpacity})`
+              : `rgba(255,255,255,${rootBackgroundOpacity})`,
+          backgroundImage: backgroundImageUrl ? `url("${backgroundImageUrl}")` : undefined,
+          backgroundSize: backgroundImageUrl ? 'cover' : undefined,
+          backgroundPosition: backgroundImageUrl ? 'center' : undefined,
+        }}
+      >
         <div className="grid h-full grid-cols-[160px_minmax(0,1fr)]">
           <aside
             ref={categoryRailRef}
-            className="flex h-full flex-col border-r border-slate-200/70 bg-white/35 px-3 py-4"
+            className="flex h-full flex-col border-r border-slate-200/70 px-3 py-4"
+            style={{
+              background:
+                theme === 'dark'
+                  ? `rgba(15,23,42,${Math.max(sidebarOpacity - 0.24, 0.14)})`
+                  : `rgba(255,255,255,${Math.max(sidebarOpacity - 0.24, 0.35)})`,
+            }}
             onContextMenuCapture={handleSidebarContextMenuCapture}
             onContextMenu={handleSidebarContextMenu}
           >
@@ -628,7 +686,7 @@ function LauncherPanel() {
                   dragOverIcons ? 'bg-slate-100/85' : '',
                 ].join(' ')}
               >
-                <div className="grid min-h-full grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-3 rounded-[12px] border border-transparent p-1 transition">
+                <div className="grid min-h-full auto-rows-max content-start grid-cols-[repeat(auto-fill,minmax(80px,1fr))] items-start gap-3 rounded-[12px] border border-transparent p-1 transition">
                   {visibleItems.map((item) => (
                     <button
                       key={item.id}
@@ -637,9 +695,11 @@ function LauncherPanel() {
                       onClick={() => void handleLaunch(item)}
                     >
                       <PanelIcon item={item} storageDirectory={storageDirectory} />
-                      <span className="mt-2 max-w-full whitespace-normal break-all text-center text-[12px] leading-4 text-slate-700">
-                        {launchingItemId === item.id ? '启动中...' : item.name}
-                      </span>
+                      {showIconTitles ? (
+                        <span className="mt-2 max-w-full whitespace-normal break-all text-center text-[12px] leading-4 text-slate-700">
+                          {launchingItemId === item.id ? '启动中...' : item.name}
+                        </span>
+                      ) : null}
                     </button>
                   ))}
                 </div>
@@ -713,6 +773,35 @@ function PanelIcon({
     <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-slate-900 text-[11px] font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.08)]">
       {item.monogram}
     </div>
+  )
+}
+
+function SettingsEntryButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label="打开设置"
+      title="打开设置"
+      onMouseDown={(event) => {
+        event.stopPropagation()
+      }}
+      onClick={onClick}
+      className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(15,23,42,0.10)] bg-white/70 text-[#666666] transition hover:bg-[#f0f0f0] hover:text-[#111111]"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="3.25" />
+        <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1 1 0 0 1 0 1.4l-1.2 1.2a1 1 0 0 1-1.4 0l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a1 1 0 0 1-1 1h-1.8a1 1 0 0 1-1-1v-.2a1 1 0 0 0-.7-.9 1 1 0 0 0-1.1.2l-.1.1a1 1 0 0 1-1.4 0l-1.2-1.2a1 1 0 0 1 0-1.4l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a1 1 0 0 1-1-1v-1.8a1 1 0 0 1 1-1h.2a1 1 0 0 0 .9-.7 1 1 0 0 0-.2-1.1l-.1-.1a1 1 0 0 1 0-1.4L6 4.7a1 1 0 0 1 1.4 0l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V4a1 1 0 0 1 1-1h1.8a1 1 0 0 1 1 1v.2a1 1 0 0 0 .7.9 1 1 0 0 0 1.1-.2l.1-.1a1 1 0 0 1 1.4 0l1.2 1.2a1 1 0 0 1 0 1.4l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.2a1 1 0 0 1 1 1v1.8a1 1 0 0 1-1 1h-.2a1 1 0 0 0-.9.7Z" />
+      </svg>
+    </button>
   )
 }
 

@@ -14,6 +14,7 @@ type WindowFrameProps = {
   subtitle?: string
   compact?: boolean
   variant?: 'dark' | 'light'
+  headerLeftAddon?: ReactNode
 }
 
 const resizeHandles = [
@@ -33,6 +34,7 @@ export function WindowFrame({
   subtitle = '自定义窗口框架',
   compact = false,
   variant = 'dark',
+  headerLeftAddon,
 }: WindowFrameProps) {
   const { isMaximized } = useWindowFrame()
   const isLight = variant === 'light'
@@ -93,47 +95,51 @@ export function WindowFrame({
             data-tauri-drag-region
           />
 
-          <div
-            className={[
-              'pointer-events-none relative z-10 flex items-center gap-3 rounded-full select-none',
-              compact ? 'px-2 py-1.5' : 'px-3 py-2',
-            ].join(' ')}
-          >
+          <div className="relative z-10 flex items-center gap-3">
             <div
               className={[
-                'flex items-center justify-center rounded-full border font-semibold tracking-[0.22em]',
-                compact ? 'h-7 w-7 text-[10px]' : 'h-8 w-8 text-xs',
+                'pointer-events-none flex items-center gap-3 rounded-full select-none',
+                compact ? 'px-2 py-1.5' : 'px-3 py-2',
               ].join(' ')}
-              style={{
-                borderColor: frameBorderColor,
-                background: logoBackground,
-                color: titleColor,
-              }}
             >
-              OR
-            </div>
-            <div>
-              <p
+              <div
                 className={[
-                  'uppercase tracking-[0.28em]',
-                  compact ? 'text-[10px]' : 'text-[11px]',
+                  'flex items-center justify-center rounded-full border font-semibold tracking-[0.22em]',
+                  compact ? 'h-7 w-7 text-[10px]' : 'h-8 w-8 text-xs',
                 ].join(' ')}
-                style={{ color: subtitleColor }}
+                style={{
+                  borderColor: frameBorderColor,
+                  background: logoBackground,
+                  color: titleColor,
+                }}
               >
-                {title}
-              </p>
-              {subtitle ? (
+                OR
+              </div>
+              <div>
                 <p
                   className={[
-                    'font-semibold',
-                    compact ? 'mt-0 text-[12px]' : 'mt-0.5 text-sm',
+                    'uppercase tracking-[0.28em]',
+                    compact ? 'text-[10px]' : 'text-[11px]',
                   ].join(' ')}
-                  style={{ color: titleColor }}
+                  style={{ color: subtitleColor }}
                 >
-                  {subtitle}
+                  {title}
                 </p>
-              ) : null}
+                {subtitle ? (
+                  <p
+                    className={[
+                      'font-semibold',
+                      compact ? 'mt-0 text-[12px]' : 'mt-0.5 text-sm',
+                    ].join(' ')}
+                    style={{ color: titleColor }}
+                  >
+                    {subtitle}
+                  </p>
+                ) : null}
+              </div>
             </div>
+
+            {headerLeftAddon ? <div className="pointer-events-auto">{headerLeftAddon}</div> : null}
           </div>
 
           <div className="relative z-10 flex items-center gap-2">

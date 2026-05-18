@@ -6,6 +6,7 @@ import type {
   CreateLauncherItemPayload,
   LaunchResult,
   LauncherState,
+  RestoreBackupResult,
   SettingsState,
   UpdateSettingsPayload,
   UpdateCategoryPayload,
@@ -44,6 +45,18 @@ export async function updateLauncherItem(payload: UpdateLauncherItemPayload) {
 
 export async function updateSettingsState(payload: UpdateSettingsPayload) {
   return invoke<SettingsState>('update_settings_state', { payload })
+}
+
+export async function createBackupArchive() {
+  return invoke<string>('create_backup_archive')
+}
+
+export async function restoreBackupArchive(content: string) {
+  return invoke<RestoreBackupResult>('restore_backup_archive', { content })
+}
+
+export async function openSettingsWindow() {
+  return invoke<void>('open_settings_window')
 }
 
 export async function deleteCategory(categoryId: string) {

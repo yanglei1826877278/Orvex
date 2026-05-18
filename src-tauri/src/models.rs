@@ -48,9 +48,23 @@ pub struct LauncherState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct SettingsState {
+  pub launch_at_startup: bool,
+  pub show_panel_on_startup: bool,
+  pub sort_mode: SortMode,
+  pub backup_retention_days: u32,
   pub theme: ThemeMode,
+  pub background_type: BackgroundType,
+  pub background_image_path: String,
+  pub frosted_glass: bool,
+  pub card_opacity: u8,
+  pub background_opacity: u8,
+  pub show_icon_titles: bool,
+  pub panel_hotkey: HotkeySetting,
+  pub todo_hotkey: HotkeySetting,
+  pub picker_hotkey: HotkeySetting,
+  pub update_source: UpdateSource,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,6 +72,35 @@ pub struct SettingsState {
 pub enum ThemeMode {
   Dark,
   Light,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SortMode {
+  Custom,
+  Usage,
+  Name,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BackgroundType {
+  Image,
+  Solid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UpdateSource {
+  Gitee,
+  Github,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct HotkeySetting {
+  pub value: String,
+  pub enabled: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -120,7 +163,21 @@ pub struct UpdateLauncherItemPayload {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateSettingsPayload {
+  pub launch_at_startup: bool,
+  pub show_panel_on_startup: bool,
+  pub sort_mode: SortMode,
+  pub backup_retention_days: u32,
   pub theme: ThemeMode,
+  pub background_type: BackgroundType,
+  pub background_image_path: String,
+  pub frosted_glass: bool,
+  pub card_opacity: u8,
+  pub background_opacity: u8,
+  pub show_icon_titles: bool,
+  pub panel_hotkey: HotkeySetting,
+  pub todo_hotkey: HotkeySetting,
+  pub picker_hotkey: HotkeySetting,
+  pub update_source: UpdateSource,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -129,6 +186,20 @@ pub struct LaunchResult {
   pub item_id: String,
   pub launched: bool,
   pub detail: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupArchive {
+  pub launcher_state: LauncherState,
+  pub settings_state: SettingsState,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RestoreBackupResult {
+  pub launcher_state: LauncherState,
+  pub settings_state: SettingsState,
 }
 
 impl LauncherState {
@@ -469,7 +540,60 @@ impl LauncherState {
 impl SettingsState {
   pub fn seed() -> Self {
     Self {
+      launch_at_startup: false,
+      show_panel_on_startup: true,
+      sort_mode: SortMode::Custom,
+      backup_retention_days: 7,
       theme: ThemeMode::Dark,
+      background_type: BackgroundType::Solid,
+      background_image_path: String::new(),
+      frosted_glass: true,
+      card_opacity: 92,
+      background_opacity: 88,
+      show_icon_titles: true,
+      panel_hotkey: HotkeySetting {
+        value: "Ctrl+Q".into(),
+        enabled: true,
+      },
+      todo_hotkey: HotkeySetting {
+        value: "Ctrl+Shift+Q".into(),
+        enabled: true,
+      },
+      picker_hotkey: HotkeySetting {
+        value: String::new(),
+        enabled: false,
+      },
+      update_source: UpdateSource::Gitee,
     }
+  }
+}
+
+impl Default for SettingsState {
+  fn default() -> Self {
+    Self::seed()
+  }
+}
+
+impl Default for ThemeMode {
+  fn default() -> Self {
+    Self::Dark
+  }
+}
+
+impl Default for SortMode {
+  fn default() -> Self {
+    Self::Custom
+  }
+}
+
+impl Default for BackgroundType {
+  fn default() -> Self {
+    Self::Solid
+  }
+}
+
+impl Default for UpdateSource {
+  fn default() -> Self {
+    Self::Gitee
   }
 }
