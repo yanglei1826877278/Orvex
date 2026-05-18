@@ -1,6 +1,8 @@
 use std::sync::Mutex;
 
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::menu::{MenuBuilder, MenuItemBuilder};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutEvent;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
@@ -21,12 +23,16 @@ struct ShortcutBindings {
   picker: Option<u32>,
 }
 
+const TRAY_SHOW_PANEL_ID: &str = "show-panel";
+const TRAY_SHOW_SETTINGS_ID: &str = "show-settings";
+const TRAY_QUIT_ID: &str = "quit";
+
 fn create_launcher_panel<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
   if app.get_webview_window("launcher-panel").is_some() {
     return Ok(());
   }
 
-  WebviewWindowBuilder::new(app, "launcher-panel", WebviewUrl::App("index.html".into()))
+  let panel = WebviewWindowBuilder::new(app, "launcher-panel", WebviewUrl::App("index.html".into()))
     .title("Orvex Launcher Panel")
     .inner_size(720.0, 480.0)
     .min_inner_size(520.0, 360.0)
@@ -36,6 +42,16 @@ fn create_launcher_panel<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri:
     .shadow(true)
     .visible(false)
     .build()?;
+
+  let app_handle = app.clone();
+  panel.on_window_event(move |event| {
+    if let WindowEvent::CloseRequested { api, .. } = event {
+      api.prevent_close();
+      if let Some(panel_window) = app_handle.get_webview_window("launcher-panel") {
+        let _ = panel_window.hide();
+      }
+    }
+  });
 
   Ok(())
 }
@@ -267,6 +283,61 @@ fn hide_launcher_panel(app: tauri::AppHandle) -> Result<(), String> {
   Ok(())
 }
 
+fn setup_tray<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
+  let show_panel = MenuItemBuilder::with_id(TRAY_SHOW_PANEL_ID, "显示主面板")
+    .build(app)
+    .map_err(|error| error.to_string())?;
+  let show_settings = MenuItemBuilder::with_id(TRAY_SHOW_SETTINGS_ID, "打开设置")
+    .build(app)
+    .map_err(|error| error.to_string())?;
+  let quit = MenuItemBuilder::with_id(TRAY_QUIT_ID, "退出 Orvex")
+    .build(app)
+    .map_err(|error| error.to_string())?;
+
+  let menu = MenuBuilder::new(app)
+    .items(&[&show_panel, &show_settings, &quit])
+    .build()
+    .map_err(|error| error.to_string())?;
+
+  let icon = app
+    .default_window_icon()
+    .cloned()
+    .ok_or_else(|| "未找到托盘图标资源。".to_string())?;
+
+  let app_handle = app.clone();
+  TrayIconBuilder::new()
+    .icon(icon)
+    .tooltip("Orvex")
+    .menu(&menu)
+    .show_menu_on_left_click(false)
+    .on_tray_icon_event(move |_tray, event| {
+      if let TrayIconEvent::Click {
+        button: MouseButton::Left,
+        button_state: MouseButtonState::Up,
+        ..
+      } = event
+      {
+        let _ = toggle_launcher_panel(&app_handle);
+      }
+    })
+    .on_menu_event(move |app, event| match event.id().as_ref() {
+      TRAY_SHOW_PANEL_ID => {
+        let _ = show_launcher_panel(app);
+      }
+      TRAY_SHOW_SETTINGS_ID => {
+        let _ = show_settings_window(app);
+      }
+      TRAY_QUIT_ID => {
+        app.exit(0);
+      }
+      _ => {}
+    })
+    .build(app)
+    .map_err(|error| error.to_string())?;
+
+  Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -308,6 +379,7 @@ pub fn run() {
       let show_panel_on_startup = initial_settings.show_panel_on_startup;
       app.manage(storage);
       create_launcher_panel(&app.handle())?;
+      setup_tray(&app.handle())?;
       if let Err(error) = apply_global_shortcuts(&app.handle(), &initial_settings) {
         return Err(error.into());
       }
