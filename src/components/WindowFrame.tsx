@@ -17,6 +17,7 @@ type WindowFrameProps = {
   headerLeftAddon?: ReactNode
   transparentSurface?: boolean
   edgeToEdge?: boolean
+  immersiveHeader?: boolean
 }
 
 const resizeHandles = [
@@ -39,6 +40,7 @@ export function WindowFrame({
   headerLeftAddon,
   transparentSurface = false,
   edgeToEdge = false,
+  immersiveHeader = false,
 }: WindowFrameProps) {
   const { isMaximized } = useWindowFrame()
   const isLight = variant === 'light'
@@ -55,9 +57,23 @@ export function WindowFrame({
     : isLight
       ? 'rgba(255,255,255,0.98)'
       : 'var(--surface-elevated)'
+  const immersiveHeaderBackground = immersiveHeader ? 'transparent' : headerBackground
+  const headerBorderColor = immersiveHeader ? 'transparent' : frameBorderColor
   const titleColor = isLight ? '#0f172a' : 'var(--paper)'
   const subtitleColor = isLight ? '#64748b' : 'var(--soft)'
-  const logoBackground = isLight ? 'rgba(15,23,42,0.04)' : 'var(--surface-soft)'
+  const logoBackground = immersiveHeader
+    ? isLight
+      ? 'rgba(255,255,255,0.18)'
+      : 'rgba(255,255,255,0.08)'
+    : isLight
+      ? 'rgba(15,23,42,0.04)'
+      : 'var(--surface-soft)'
+  const headerContentBackground = immersiveHeader
+    ? isLight
+      ? 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%)'
+      : 'linear-gradient(180deg, rgba(15,23,42,0.12) 0%, rgba(15,23,42,0.03) 100%)'
+    : 'transparent'
+  const headerHeightClass = compact ? 'h-11' : 'h-14'
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-transparent">
@@ -89,14 +105,27 @@ export function WindowFrame({
       >
         <header
           className={[
-            'relative z-40 flex items-center justify-between border-b px-4',
-            compact ? 'h-11' : 'h-14',
+            'z-40 flex items-center justify-between border-b px-4',
+            immersiveHeader ? 'absolute inset-x-0 top-0' : 'relative',
+            headerHeightClass,
           ].join(' ')}
           style={{
-            borderColor: frameBorderColor,
-            background: headerBackground,
+            borderColor: headerBorderColor,
+            background: immersiveHeaderBackground,
           }}
         >
+          {immersiveHeader ? (
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 top-0 z-0"
+              style={{
+                background: headerContentBackground,
+                boxShadow: isLight
+                  ? 'inset 0 -1px 0 rgba(255,255,255,0.18)'
+                  : 'inset 0 -1px 0 rgba(148,163,184,0.08)',
+              }}
+            />
+          ) : null}
+
           <div
             className="absolute inset-0 z-0"
             onMouseDown={(event) => {
@@ -111,9 +140,14 @@ export function WindowFrame({
           <div className="relative z-10 flex items-center gap-3">
             <div
               className={[
-                'pointer-events-none flex items-center gap-3 rounded-full select-none',
+                'pointer-events-none flex items-center gap-3 select-none',
+                immersiveHeader ? 'rounded-[18px]' : 'rounded-full',
                 compact ? 'px-2 py-1.5' : 'px-3 py-2',
               ].join(' ')}
+              style={{
+                background: immersiveHeader ? headerContentBackground : 'transparent',
+                backdropFilter: immersiveHeader ? 'blur(14px)' : 'none',
+              }}
             >
               <div
                 className={[
@@ -155,7 +189,15 @@ export function WindowFrame({
             {headerLeftAddon ? <div className="pointer-events-auto">{headerLeftAddon}</div> : null}
           </div>
 
-          <div className="relative z-10 flex items-center gap-2">
+          <div
+            className={[
+              'relative z-10 flex items-center gap-2',
+              immersiveHeader ? 'rounded-[16px] px-1 py-1 backdrop-blur-[14px]' : '',
+            ].join(' ')}
+            style={{
+              background: immersiveHeader ? headerContentBackground : 'transparent',
+            }}
+          >
             <FrameButton
               label="最小化"
               onClick={() => void minimizeWindow()}

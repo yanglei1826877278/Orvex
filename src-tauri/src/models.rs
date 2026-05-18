@@ -62,6 +62,7 @@ pub struct SettingsState {
   pub sidebar_opacity: u8,
   pub content_opacity: u8,
   pub background_opacity: u8,
+  pub transparent_dragon_header: bool,
   pub appearance: AppearanceSettings,
   pub show_icon_titles: bool,
   pub panel_hotkey: HotkeySetting,
@@ -186,6 +187,7 @@ pub struct UpdateSettingsPayload {
   pub sidebar_opacity: u8,
   pub content_opacity: u8,
   pub background_opacity: u8,
+  pub transparent_dragon_header: bool,
   pub appearance: AppearanceSettings,
   pub show_icon_titles: bool,
   pub panel_hotkey: HotkeySetting,
@@ -566,6 +568,7 @@ impl SettingsState {
       sidebar_opacity: 92,
       content_opacity: 92,
       background_opacity: 88,
+      transparent_dragon_header: false,
       appearance: AppearanceSettings {
         category_font_size: 14,
         category_font_color: "#333333".into(),

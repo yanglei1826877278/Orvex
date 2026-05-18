@@ -219,6 +219,7 @@ impl StorageState {
     settings.sidebar_opacity = payload.sidebar_opacity.clamp(0, 100);
     settings.content_opacity = payload.content_opacity.clamp(0, 100);
     settings.background_opacity = payload.background_opacity.clamp(0, 100);
+    settings.transparent_dragon_header = payload.transparent_dragon_header;
     settings.appearance.category_font_size = payload.appearance.category_font_size.clamp(12, 18);
     settings.appearance.category_font_color =
       normalize_hex_color(&payload.appearance.category_font_color, "#333333");

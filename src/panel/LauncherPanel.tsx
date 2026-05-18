@@ -34,6 +34,12 @@ type SidebarMenuState = {
   category: PanelCategory | null
 }
 
+type HoverCardState = {
+  item: LauncherItem | null
+  x: number
+  y: number
+}
+
 function LauncherPanel() {
   const {
     launcherState,
@@ -63,6 +69,11 @@ function LauncherPanel() {
     y: 0,
     category: null,
   })
+  const [hoverCard, setHoverCard] = useState<HoverCardState>({
+    item: null,
+    x: 0,
+    y: 0,
+  })
   const [hoveredCategoryIndex, setHoveredCategoryIndex] = useState<number | null>(null)
   const [previewSettings, setPreviewSettings] = useState<SettingsState | null>(null)
   const categoryListRef = useRef<HTMLDivElement | null>(null)
@@ -84,6 +95,7 @@ function LauncherPanel() {
   const sidebarOpacity = (effectiveSettings?.sidebarOpacity ?? 92) / 100
   const contentOpacity = (effectiveSettings?.contentOpacity ?? 92) / 100
   const frostedGlassEnabled = effectiveSettings?.frostedGlass !== false
+  const transparentDragonHeader = effectiveSettings?.transparentDragonHeader === true
   const appearanceSettings = effectiveSettings?.appearance
   const categoryFontSize = appearanceSettings?.category_font_size ?? 14
   const categoryFontColor = appearanceSettings?.category_font_color ?? '#333333'
@@ -669,6 +681,7 @@ function LauncherPanel() {
       variant={theme}
       edgeToEdge
       transparentSurface
+      immersiveHeader={transparentDragonHeader}
       headerLeftAddon={
         <SettingsEntryButton
           theme={theme}
@@ -682,7 +695,11 @@ function LauncherPanel() {
     >
       <div
         className="relative h-[calc(100vh-44px)] w-full overflow-hidden font-[system-ui] text-[var(--panel-text-strong)]"
-        style={panelCssVars}
+        style={{
+          ...panelCssVars,
+          paddingTop: transparentDragonHeader ? '44px' : '0',
+          height: transparentDragonHeader ? '100vh' : 'calc(100vh - 44px)',
+        }}
       >
         <div className="absolute inset-0" style={{ background: panelAppearance.baseLayer }} />
         {backgroundImageUrl ? (
@@ -906,6 +923,33 @@ function LauncherPanel() {
                         'bg-[var(--panel-item-bg)] hover:-translate-y-0.5 hover:bg-[var(--panel-item-hover-bg)]',
                         frostedGlassEnabled ? 'backdrop-blur-[12px]' : '',
                       ].join(' ')}
+                      onMouseEnter={(event) => {
+                        const rect = event.currentTarget.getBoundingClientRect()
+                        setHoverCard({
+                          item,
+                          x: rect.right + 12,
+                          y: rect.top + rect.height / 2,
+                        })
+                      }}
+                      onMouseMove={(event) => {
+                        const rect = event.currentTarget.getBoundingClientRect()
+                        setHoverCard((current) =>
+                          current.item?.id === item.id
+                            ? {
+                                item,
+                                x: rect.right + 12,
+                                y: rect.top + rect.height / 2,
+                              }
+                            : current,
+                        )
+                      }}
+                      onMouseLeave={() => {
+                        setHoverCard((current) =>
+                          current.item?.id === item.id
+                            ? { item: null, x: 0, y: 0 }
+                            : current,
+                        )
+                      }}
                       onClick={() => void handleLaunch(item)}
                     >
                       <PanelIcon item={item} storageDirectory={storageDirectory} />
@@ -949,6 +993,14 @@ function LauncherPanel() {
                     </p>
                   </div>
                 </div>
+              ) : null}
+
+              {hoverCard.item ? (
+                <ItemHoverCard
+                  item={hoverCard.item}
+                  x={hoverCard.x}
+                  y={hoverCard.y}
+                />
               ) : null}
             </div>
           </main>
@@ -1008,6 +1060,50 @@ function PanelIcon({
       style={{ background: item.accent || 'var(--panel-row-accent)' }}
     >
       {item.monogram}
+    </div>
+  )
+}
+
+function ItemHoverCard({
+  item,
+  x,
+  y,
+}: {
+  item: LauncherItem
+  x: number
+  y: number
+}) {
+  return (
+    <div
+      className="pointer-events-none fixed z-[95] w-[280px] overflow-hidden rounded-[18px] border border-[#d8dee8] bg-[#fdfefe] text-left shadow-[0_22px_50px_rgba(15,23,42,0.18)]"
+      style={{
+        left: Math.min(x, window.innerWidth - 296),
+        top: Math.max(12, Math.min(y - 58, window.innerHeight - 154)),
+      }}
+    >
+      <div className="border-b border-[#e8edf4] bg-[#f6f8fb] px-4 py-2.5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#667085]">
+          应用信息
+        </p>
+      </div>
+      <div className="px-4 py-3.5">
+        <div className="space-y-2">
+          <div>
+            <p className="text-[11px] font-medium text-[#98a2b3]">路径</p>
+            <p className="mt-1 break-all text-[12px] leading-5 text-[#344054]">{item.path}</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-medium text-[#98a2b3]">名称</p>
+            <p className="mt-1 text-[20px] font-semibold leading-6 text-[#101828]">
+              {item.name}
+            </p>
+          </div>
+          <div className="flex items-center justify-between rounded-[12px] bg-[#f7f9fc] px-3 py-2">
+            <span className="text-[12px] font-medium text-[#667085]">使用次数</span>
+            <span className="text-[14px] font-semibold text-[#101828]">{item.launchCount}</span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

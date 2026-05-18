@@ -63,6 +63,7 @@ export type SettingsState = {
   sidebarOpacity: number
   contentOpacity: number
   backgroundOpacity: number
+  transparentDragonHeader: boolean
   appearance: AppearanceSettings
   showIconTitles: boolean
   panelHotkey: HotkeySetting
@@ -123,6 +124,7 @@ export type UpdateSettingsPayload = {
   sidebarOpacity: number
   contentOpacity: number
   backgroundOpacity: number
+  transparentDragonHeader: boolean
   appearance: AppearanceSettings
   showIconTitles: boolean
   panelHotkey: HotkeySetting

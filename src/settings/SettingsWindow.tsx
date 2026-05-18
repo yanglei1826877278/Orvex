@@ -61,6 +61,7 @@ function SettingsWindow() {
       draft.sidebarOpacity !== settingsState.sidebarOpacity ||
       draft.contentOpacity !== settingsState.contentOpacity ||
       draft.backgroundOpacity !== settingsState.backgroundOpacity ||
+      draft.transparentDragonHeader !== settingsState.transparentDragonHeader ||
       draft.showIconTitles !== settingsState.showIconTitles ||
       draft.appearance.category_font_size !== settingsState.appearance.category_font_size ||
       draft.appearance.category_font_color !== settingsState.appearance.category_font_color ||
@@ -404,6 +405,14 @@ function SettingsWindow() {
                   value={draft.backgroundOpacity}
                   onChange={(value) => updateDraft({ backgroundOpacity: value })}
                 />
+              </SettingRow>
+              <SettingRow label="龙之题头透明">
+                <SettingField hint="开启后，顶部题头会和背景、内容区自然贴合在一起。">
+                  <Toggle
+                    checked={draft.transparentDragonHeader}
+                    onChange={(checked) => updateDraft({ transparentDragonHeader: checked })}
+                  />
+                </SettingField>
               </SettingRow>
               <SettingRow label="显示图标标题">
                 <Toggle
