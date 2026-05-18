@@ -25,3 +25,4 @@ tauri = { version = "2.11.1", features = ["protocol-asset"] }
 tauri-plugin-log = "2"
 tauri-plugin-global-shortcut = "2"
 uuid = { version = "1.18.1", features = ["v4", "serde"] }
+tauri-plugin-dialog = "2"

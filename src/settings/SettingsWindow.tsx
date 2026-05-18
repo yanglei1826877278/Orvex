@@ -1,4 +1,5 @@
 import { emit } from '@tauri-apps/api/event'
+import { open } from '@tauri-apps/plugin-dialog'
 import {
   useEffect,
   useRef,
@@ -36,7 +37,6 @@ function SettingsWindow() {
   const [backingUp, setBackingUp] = useState(false)
   const [restoring, setRestoring] = useState(false)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
-  const backgroundFileInputRef = useRef<HTMLInputElement | null>(null)
   const restoreFileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -82,7 +82,6 @@ function SettingsWindow() {
         backgroundOpacity: clampNumber(draft.backgroundOpacity, 0, 100),
       })
       await emit('orvex://settings-updated')
-      setStatus('设置已保存')
     } catch (caughtError) {
       setStatus(caughtError instanceof Error ? caughtError.message : '保存设置失败')
     } finally {
@@ -125,21 +124,29 @@ function SettingsWindow() {
     }
   }
 
-  function handleBackgroundFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const selectedFile = event.target.files?.[0]
-    event.target.value = ''
+  async function handleSelectBackgroundImage() {
+    try {
+      const selectedPath = await open({
+        directory: false,
+        multiple: false,
+        title: '选择背景图片',
+        filters: [
+          {
+            name: '图片',
+            extensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'],
+          },
+        ],
+      })
 
-    if (!selectedFile) {
-      return
+      if (typeof selectedPath !== 'string' || !selectedPath) {
+        return
+      }
+
+      updateDraft({ backgroundImagePath: selectedPath })
+      setStatus('已选择背景图片，保存后生效')
+    } catch (caughtError) {
+      setStatus(caughtError instanceof Error ? caughtError.message : '选择背景图片失败')
     }
-
-    const fileWithPath = selectedFile as File & { path?: string }
-    const nextPath =
-      fileWithPath.path ??
-      (event.currentTarget as HTMLInputElement).value.replace(/^C:\\fakepath\\/, '') ??
-      selectedFile.name
-
-    updateDraft({ backgroundImagePath: nextPath })
   }
 
   async function handleCheckUpdate() {
@@ -317,7 +324,7 @@ function SettingsWindow() {
                     />
                     <ActionButton
                       label="选择文件"
-                      onClick={() => backgroundFileInputRef.current?.click()}
+                      onClick={() => void handleSelectBackgroundImage()}
                     />
                   </div>
                 </SettingRow>
@@ -438,13 +445,6 @@ function SettingsWindow() {
         </div>
       </div>
 
-      <input
-        ref={backgroundFileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleBackgroundFileChange}
-      />
       <input
         ref={restoreFileInputRef}
         type="file"

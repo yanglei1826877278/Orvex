@@ -279,6 +279,7 @@ pub fn run() {
             .build(),
         )?;
       }
+      app.handle().plugin(tauri_plugin_dialog::init())?;
       app.handle().plugin(
         tauri_plugin_global_shortcut::Builder::new()
           .with_handler(|app, _shortcut: &Shortcut, event: ShortcutEvent| {

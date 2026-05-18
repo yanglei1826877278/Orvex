@@ -15,6 +15,8 @@ type WindowFrameProps = {
   compact?: boolean
   variant?: 'dark' | 'light'
   headerLeftAddon?: ReactNode
+  transparentSurface?: boolean
+  edgeToEdge?: boolean
 }
 
 const resizeHandles = [
@@ -35,11 +37,17 @@ export function WindowFrame({
   compact = false,
   variant = 'dark',
   headerLeftAddon,
+  transparentSurface = false,
+  edgeToEdge = false,
 }: WindowFrameProps) {
   const { isMaximized } = useWindowFrame()
   const isLight = variant === 'light'
   const frameBorderColor = isLight ? 'rgba(15, 23, 42, 0.10)' : 'var(--line)'
-  const frameBackground = isLight ? 'rgba(255,255,255,0.88)' : 'var(--surface)'
+  const frameBackground = transparentSurface
+    ? 'transparent'
+    : isLight
+      ? 'rgba(255,255,255,0.88)'
+      : 'var(--surface)'
   const headerBackground = isLight
     ? 'rgba(255,255,255,0.88)'
     : 'var(--surface-elevated)'
@@ -65,9 +73,10 @@ export function WindowFrame({
 
       <div
         className={[
-          'relative min-h-screen overflow-hidden rounded-[26px] border shadow-[var(--shadow)]',
-          isMaximized ? 'rounded-none border-transparent shadow-none' : '',
-          isLight ? 'backdrop-blur-[20px]' : '',
+          'relative min-h-screen overflow-hidden border shadow-[var(--shadow)]',
+          edgeToEdge || isMaximized ? 'rounded-none' : 'rounded-[26px]',
+          isMaximized ? 'border-transparent shadow-none' : '',
+          isLight && !transparentSurface ? 'backdrop-blur-[20px]' : '',
         ].join(' ')}
         style={{
           borderColor: frameBorderColor,

@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
@@ -76,16 +77,65 @@ function LauncherPanel() {
   const showIconTitles = settingsState?.showIconTitles ?? true
   const rootBackgroundOpacity = (settingsState?.backgroundOpacity ?? 88) / 100
   const sidebarOpacity = (settingsState?.cardOpacity ?? 92) / 100
+  const frostedGlassEnabled = settingsState?.frostedGlass !== false
+  const panelAppearance = useMemo(
+    () =>
+      buildPanelAppearance({
+        theme,
+        cardOpacity: sidebarOpacity,
+        backgroundOpacity: rootBackgroundOpacity,
+        hasImageBackground: Boolean(backgroundImageUrl),
+      }),
+    [backgroundImageUrl, rootBackgroundOpacity, sidebarOpacity, theme],
+  )
+  const panelCssVars = useMemo(
+    () =>
+      ({
+        color: panelAppearance.textStrong,
+        '--panel-text-strong': panelAppearance.textStrong,
+        '--panel-text-soft': panelAppearance.textSoft,
+        '--panel-text-muted': panelAppearance.textMuted,
+        '--panel-row-hover-bg': panelAppearance.rowHoverBg,
+        '--panel-row-active-bg': panelAppearance.rowActiveBg,
+        '--panel-row-accent': panelAppearance.rowAccent,
+        '--panel-badge-bg': panelAppearance.badgeBg,
+        '--panel-badge-text': panelAppearance.badgeText,
+        '--panel-search-bg': panelAppearance.searchSurface,
+        '--panel-search-border': panelAppearance.searchBorder,
+        '--panel-search-placeholder': panelAppearance.searchPlaceholder,
+        '--panel-flash-bg': panelAppearance.flashBg,
+        '--panel-flash-border': panelAppearance.flashBorder,
+        '--panel-grid-bg': panelAppearance.gridSurface,
+        '--panel-grid-border': panelAppearance.gridBorder,
+        '--panel-grid-hover-bg': panelAppearance.gridHoverBg,
+        '--panel-item-bg': panelAppearance.itemBaseBg,
+        '--panel-item-hover-bg': panelAppearance.itemHoverBg,
+        '--panel-overlay-bg': panelAppearance.overlayBg,
+        '--panel-overlay-card-bg': panelAppearance.overlayCardBg,
+        '--panel-overlay-card-border': panelAppearance.overlayCardBorder,
+        '--panel-time-text': panelAppearance.timeText,
+        '--panel-icon-shell-bg': panelAppearance.iconShellBg,
+        '--panel-icon-shell-shadow': panelAppearance.iconShellShadow,
+        '--panel-settings-bg': panelAppearance.settingsButtonBg,
+        '--panel-settings-border': panelAppearance.settingsButtonBorder,
+        '--panel-settings-hover-bg': panelAppearance.settingsButtonHoverBg,
+        '--panel-settings-hover-border': panelAppearance.settingsButtonHoverBorder,
+        '--panel-settings-icon': panelAppearance.settingsButtonIcon,
+        '--panel-menu-bg': panelAppearance.menuBg,
+        '--panel-menu-border': panelAppearance.menuBorder,
+        '--panel-menu-hover-bg': panelAppearance.menuHoverBg,
+        '--panel-menu-text': panelAppearance.menuText,
+        '--panel-menu-danger': panelAppearance.menuDanger,
+      }) as CSSProperties,
+    [panelAppearance],
+  )
 
   useEffect(() => {
     const previousTheme = document.documentElement.dataset.theme
     const previousBodyBackground = document.body.style.background
 
     document.documentElement.dataset.theme = theme
-    document.body.style.background =
-      theme === 'dark'
-        ? `rgba(15,23,42,${Math.max(rootBackgroundOpacity, 0.4)})`
-        : `rgba(255,255,255,${Math.max(rootBackgroundOpacity, 0.4)})`
+    document.body.style.background = panelAppearance.bodyBackground
 
     return () => {
       if (previousTheme) {
@@ -95,7 +145,7 @@ function LauncherPanel() {
       }
       document.body.style.background = previousBodyBackground
     }
-  }, [rootBackgroundOpacity, theme])
+  }, [panelAppearance.bodyBackground, theme])
 
   useEffect(() => {
     if (!creatingCategory) {
@@ -551,8 +601,11 @@ function LauncherPanel() {
       subtitle="快速启动"
       compact
       variant={theme}
+      edgeToEdge
+      transparentSurface
       headerLeftAddon={
         <SettingsEntryButton
+          theme={theme}
           onClick={() => {
             void openSettingsWindowCommand().catch((error) => {
               setFlash(error instanceof Error ? error.message : '打开设置窗口失败')
@@ -562,29 +615,36 @@ function LauncherPanel() {
       }
     >
       <div
-        className={[
-          'relative h-[calc(100vh-44px)] w-full overflow-hidden font-[system-ui] text-slate-900',
-          settingsState?.frostedGlass === false ? '' : 'backdrop-blur-[20px]',
-        ].join(' ')}
-        style={{
-          background:
-            theme === 'dark'
-              ? `rgba(15,23,42,${rootBackgroundOpacity})`
-              : `rgba(255,255,255,${rootBackgroundOpacity})`,
-          backgroundImage: backgroundImageUrl ? `url("${backgroundImageUrl}")` : undefined,
-          backgroundSize: backgroundImageUrl ? 'cover' : undefined,
-          backgroundPosition: backgroundImageUrl ? 'center' : undefined,
-        }}
+        className="relative h-[calc(100vh-44px)] w-full overflow-hidden font-[system-ui] text-[var(--panel-text-strong)]"
+        style={panelCssVars}
       >
-        <div className="grid h-full grid-cols-[160px_minmax(0,1fr)]">
+        <div className="absolute inset-0" style={{ background: panelAppearance.baseLayer }} />
+        {backgroundImageUrl ? (
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{
+              backgroundImage: `url("${backgroundImageUrl}")`,
+              transform: 'scale(1.03)',
+            }}
+          />
+        ) : null}
+        <div
+          className={['absolute inset-0', frostedGlassEnabled ? 'backdrop-blur-[22px]' : ''].join(
+            ' ',
+          )}
+          style={{ background: panelAppearance.overlayLayer }}
+        />
+
+        <div className="relative z-10 grid h-full grid-cols-[160px_minmax(0,1fr)]">
           <aside
             ref={categoryRailRef}
-            className="flex h-full flex-col border-r border-slate-200/70 px-3 py-4"
+            className={[
+              'flex h-full flex-col border-r px-3 py-4',
+              frostedGlassEnabled ? 'backdrop-blur-[18px]' : '',
+            ].join(' ')}
             style={{
-              background:
-                theme === 'dark'
-                  ? `rgba(15,23,42,${Math.max(sidebarOpacity - 0.24, 0.14)})`
-                  : `rgba(255,255,255,${Math.max(sidebarOpacity - 0.24, 0.35)})`,
+              background: panelAppearance.sidebarSurface,
+              borderColor: panelAppearance.gridBorder,
             }}
             onContextMenuCapture={handleSidebarContextMenuCapture}
             onContextMenu={handleSidebarContextMenu}
@@ -594,12 +654,12 @@ function LauncherPanel() {
                 const isActive = category.id === activeCategory.id
                 const isRenaming = renamingCategoryId === category.id
                 const rowClass = [
-                  'relative flex h-9 w-full items-center justify-between rounded-[10px] px-3 text-left text-[13px] transition',
+                  'relative flex h-9 w-full items-center justify-between rounded-[12px] px-3 text-left text-[13px] transition-colors',
                   isActive || isRenaming
-                    ? 'text-[#111111]'
-                    : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900',
+                    ? 'text-[var(--panel-text-strong)]'
+                    : 'text-[var(--panel-text-soft)] hover:bg-[var(--panel-row-hover-bg)] hover:text-[var(--panel-text-strong)]',
                 ].join(' ')
-                const rowStyle = isActive || isRenaming ? { backgroundColor: '#f0f0f0' } : undefined
+                const rowStyle = isActive || isRenaming ? { backgroundColor: panelAppearance.rowActiveBg } : undefined
 
                 if (isRenaming) {
                   return (
@@ -611,7 +671,7 @@ function LauncherPanel() {
                     >
                       <span
                         className="absolute left-0 top-1.5 h-6 w-[3px] rounded-r-full"
-                        style={{ backgroundColor: '#333333' }}
+                        style={{ backgroundColor: panelAppearance.rowAccent }}
                       />
                       <input
                         ref={renameCategoryInputRef}
@@ -622,9 +682,15 @@ function LauncherPanel() {
                           void handleRenameCategoryConfirm()
                         }}
                         disabled={editingCategoryId === category.id}
-                        className="w-full bg-transparent pl-1 pr-2 text-[13px] text-[#111111] outline-none disabled:opacity-60"
+                        className="w-full bg-transparent pl-1 pr-2 text-[13px] text-[var(--panel-text-strong)] outline-none disabled:opacity-60"
                       />
-                      <span className="rounded-full bg-slate-200/80 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                        style={{
+                          backgroundColor: panelAppearance.badgeBg,
+                          color: panelAppearance.badgeText,
+                        }}
+                      >
                         {category.count}
                       </span>
                     </div>
@@ -644,11 +710,17 @@ function LauncherPanel() {
                     {isActive ? (
                       <span
                         className="absolute left-0 top-1.5 h-6 w-[3px] rounded-r-full"
-                        style={{ backgroundColor: '#333333' }}
+                        style={{ backgroundColor: panelAppearance.rowAccent }}
                       />
                     ) : null}
                     <span className="truncate pl-1">{category.title}</span>
-                    <span className="rounded-full bg-slate-200/80 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                    <span
+                      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                      style={{
+                        backgroundColor: panelAppearance.badgeBg,
+                        color: panelAppearance.badgeText,
+                      }}
+                    >
                       {category.count}
                     </span>
                   </button>
@@ -658,11 +730,12 @@ function LauncherPanel() {
               {creatingCategory ? (
                 <div
                   data-category-create="true"
-                  className="relative flex h-9 w-full items-center rounded-[10px] bg-[#f0f0f0] px-3 text-[13px] text-[#111111]"
+                  className="relative flex h-9 w-full items-center rounded-[12px] px-3 text-[13px] text-[var(--panel-text-strong)]"
+                  style={{ backgroundColor: panelAppearance.rowActiveBg }}
                 >
                   <span
                     className="absolute left-0 top-1.5 h-6 w-[3px] rounded-r-full"
-                    style={{ backgroundColor: '#333333' }}
+                    style={{ backgroundColor: panelAppearance.rowAccent }}
                   />
                   <input
                     ref={createCategoryInputRef}
@@ -676,14 +749,16 @@ function LauncherPanel() {
                     }}
                     disabled={submittingCategory}
                     placeholder="输入分类名称"
-                    className="w-full bg-transparent pl-1 text-[13px] text-[#111111] outline-none placeholder:text-slate-400 disabled:opacity-60"
+                    className="w-full bg-transparent pl-1 text-[13px] text-[var(--panel-text-strong)] outline-none placeholder:text-[var(--panel-text-muted)] disabled:opacity-60"
                   />
                 </div>
               ) : null}
             </div>
 
             <div className="mt-auto px-4 pt-4">
-              <div className="text-left text-[28px] font-light text-[#999999]">{timeText}</div>
+              <div className="text-left text-[28px] font-light text-[var(--panel-time-text)]">
+                {timeText}
+              </div>
             </div>
           </aside>
 
@@ -693,12 +768,29 @@ function LauncherPanel() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="搜索或直接输入..."
-                className="w-full rounded-[8px] border-none bg-[#f5f5f5] px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-[#f5f5f5]"
+                className={[
+                  'w-full rounded-[16px] border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--panel-search-placeholder)]',
+                  frostedGlassEnabled ? 'backdrop-blur-[14px]' : '',
+                ].join(' ')}
+                style={{
+                  background: panelAppearance.searchSurface,
+                  borderColor: panelAppearance.searchBorder,
+                  color: panelAppearance.textStrong,
+                }}
               />
             </div>
 
             {flash ? (
-              <div className="mt-3 rounded-[10px] bg-slate-900 px-3 py-2 text-[12px] text-white/90">
+              <div
+                className={[
+                  'mt-3 rounded-[14px] border px-3 py-2 text-[12px] text-[var(--panel-text-strong)]',
+                  frostedGlassEnabled ? 'backdrop-blur-[14px]' : '',
+                ].join(' ')}
+                style={{
+                  background: panelAppearance.flashBg,
+                  borderColor: panelAppearance.flashBorder,
+                }}
+              >
                 {flash}
               </div>
             ) : null}
@@ -707,21 +799,29 @@ function LauncherPanel() {
               <div
                 ref={iconGridRef}
                 className={[
-                  'h-full overflow-y-auto rounded-[12px] pr-1 transition',
-                  dragOverIcons ? 'bg-slate-100/85' : '',
+                  'h-full overflow-y-auto rounded-[16px] border pr-1 transition',
+                  frostedGlassEnabled ? 'backdrop-blur-[14px]' : '',
                 ].join(' ')}
+                style={{
+                  background: dragOverIcons ? panelAppearance.gridHoverBg : panelAppearance.gridSurface,
+                  borderColor: panelAppearance.gridBorder,
+                }}
               >
-                <div className="grid min-h-full auto-rows-max content-start grid-cols-[repeat(auto-fill,minmax(80px,1fr))] items-start gap-3 rounded-[12px] border border-transparent p-1 transition">
+                <div className="grid min-h-full auto-rows-max content-start grid-cols-[repeat(auto-fill,minmax(80px,1fr))] items-start gap-3 rounded-[16px] border border-transparent p-2 transition">
                   {visibleItems.map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      className="group flex min-h-[96px] flex-col items-center justify-start rounded-[12px] px-2 py-2 transition hover:-translate-y-0.5 hover:bg-slate-100/95"
+                      className={[
+                        'group flex min-h-[96px] flex-col items-center justify-start rounded-[14px] border border-transparent px-2 py-2 transition',
+                        'bg-[var(--panel-item-bg)] hover:-translate-y-0.5 hover:bg-[var(--panel-item-hover-bg)]',
+                        frostedGlassEnabled ? 'backdrop-blur-[12px]' : '',
+                      ].join(' ')}
                       onClick={() => void handleLaunch(item)}
                     >
                       <PanelIcon item={item} storageDirectory={storageDirectory} />
                       {showIconTitles ? (
-                        <span className="mt-2 max-w-full whitespace-normal break-all text-center text-[12px] leading-4 text-slate-700">
+                        <span className="mt-2 max-w-full whitespace-normal break-all text-center text-[12px] leading-4 text-[var(--panel-text-soft)] transition-colors group-hover:text-[var(--panel-text-strong)]">
                           {launchingItemId === item.id ? '启动中...' : item.name}
                         </span>
                       ) : null}
@@ -731,12 +831,24 @@ function LauncherPanel() {
               </div>
 
               {dragOverlayVisible ? (
-                <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center rounded-[12px] bg-white/40 backdrop-blur-[2px]">
-                  <div className="rounded-[16px] border border-slate-300/80 bg-white/92 px-5 py-4 text-center shadow-[0_12px_36px_rgba(15,23,42,0.08)]">
-                    <p className="text-[15px] font-semibold text-slate-900">
+                <div
+                  className="pointer-events-none absolute inset-0 z-20 grid place-items-center rounded-[16px]"
+                  style={{ background: panelAppearance.overlayBg }}
+                >
+                  <div
+                    className={[
+                      'rounded-[18px] border px-5 py-4 text-center shadow-[0_12px_36px_rgba(15,23,42,0.12)]',
+                      frostedGlassEnabled ? 'backdrop-blur-[16px]' : '',
+                    ].join(' ')}
+                    style={{
+                      background: panelAppearance.overlayCardBg,
+                      borderColor: panelAppearance.overlayCardBorder,
+                    }}
+                  >
+                    <p className="text-[15px] font-semibold text-[var(--panel-text-strong)]">
                       拖到这里即可添加启动项
                     </p>
-                    <p className="mt-1 text-[12px] text-slate-500">
+                    <p className="mt-1 text-[12px] text-[var(--panel-text-muted)]">
                       支持 exe、lnk、bat、cmd 和文件夹
                     </p>
                   </div>
@@ -788,20 +900,29 @@ function PanelIcon({
 
   if (iconUrl) {
     return (
-      <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)]">
+      <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[var(--panel-icon-shell-bg)] shadow-[var(--panel-icon-shell-shadow)]">
         <img src={iconUrl} alt="" className="h-9 w-9 object-contain" draggable={false} />
       </div>
     )
   }
 
   return (
-    <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-slate-900 text-[11px] font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.08)]">
+    <div
+      className="flex h-10 w-10 items-center justify-center rounded-[12px] text-[11px] font-semibold text-white shadow-[var(--panel-icon-shell-shadow)]"
+      style={{ background: item.accent || 'var(--panel-row-accent)' }}
+    >
       {item.monogram}
     </div>
   )
 }
 
-function SettingsEntryButton({ onClick }: { onClick: () => void }) {
+function SettingsEntryButton({
+  onClick,
+  theme,
+}: {
+  onClick: () => void
+  theme: 'dark' | 'light'
+}) {
   return (
     <button
       type="button"
@@ -811,7 +932,23 @@ function SettingsEntryButton({ onClick }: { onClick: () => void }) {
         event.stopPropagation()
       }}
       onClick={onClick}
-      className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(15,23,42,0.10)] bg-white/80 text-[#333333] shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition hover:border-[rgba(15,23,42,0.16)] hover:bg-[#f0f0f0] hover:text-[#111111] active:scale-95"
+      className={[
+        'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition active:scale-95',
+        theme === 'dark' ? 'backdrop-blur-[14px]' : '',
+      ].join(' ')}
+      style={{
+        borderColor: 'var(--panel-settings-border)',
+        background: 'var(--panel-settings-bg)',
+        color: 'var(--panel-settings-icon)',
+      }}
+      onMouseEnter={(event) => {
+        event.currentTarget.style.background = 'var(--panel-settings-hover-bg)'
+        event.currentTarget.style.borderColor = 'var(--panel-settings-hover-border)'
+      }}
+      onMouseLeave={(event) => {
+        event.currentTarget.style.background = 'var(--panel-settings-bg)'
+        event.currentTarget.style.borderColor = 'var(--panel-settings-border)'
+      }}
     >
       <svg
         width="20"
@@ -823,14 +960,14 @@ function SettingsEntryButton({ onClick }: { onClick: () => void }) {
       >
         <path
           d="M12 15.5C13.933 15.5 15.5 13.933 15.5 12C15.5 10.067 13.933 8.5 12 8.5C10.067 8.5 8.5 10.067 8.5 12C8.5 13.933 10.067 15.5 12 15.5Z"
-          stroke="#5B6673"
+          stroke="currentColor"
           strokeWidth="1.6"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         <path
           d="M18.4 13.5C18.48 13.02 18.48 12.98 18.48 12C18.48 11.02 18.48 10.98 18.4 10.5L20.15 9.15L18.35 6.05L16.25 6.9C15.55 6.35 15.05 6.05 14.2 5.75L13.9 3.5H10.1L9.8 5.75C8.95 6.05 8.45 6.35 7.75 6.9L5.65 6.05L3.85 9.15L5.6 10.5C5.52 10.98 5.52 11.02 5.52 12C5.52 12.98 5.52 13.02 5.6 13.5L3.85 14.85L5.65 17.95L7.75 17.1C8.45 17.65 8.95 17.95 9.8 18.25L10.1 20.5H13.9L14.2 18.25C15.05 17.95 15.55 17.65 16.25 17.1L18.35 17.95L20.15 14.85L18.4 13.5Z"
-          stroke="#5B6673"
+          stroke="currentColor"
           strokeWidth="1.6"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -873,10 +1010,11 @@ function ContextMenu({
   return (
     <div
       ref={menuRef}
-      className="animate-context-menu fixed z-[90] min-w-[132px] rounded-[8px] bg-white py-1 shadow-[0_4px_16px_rgba(0,0,0,0.12)]"
+      className="animate-context-menu fixed z-[90] min-w-[132px] rounded-[12px] border bg-[var(--panel-menu-bg)] py-1 shadow-[0_12px_28px_rgba(0,0,0,0.18)]"
       style={{
         left: position.left,
         top: position.top,
+        borderColor: 'var(--panel-menu-border)',
       }}
     >
       {children}
@@ -898,8 +1036,8 @@ function ContextMenuItem({
       type="button"
       onClick={onClick}
       className={[
-        'flex h-8 w-full items-center px-4 text-left text-[13px] transition-colors duration-100 hover:bg-[#f5f5f5]',
-        danger ? 'text-[#e53935]' : 'text-[#333333]',
+        'flex h-8 w-full items-center px-4 text-left text-[13px] transition-colors duration-100 hover:bg-[var(--panel-menu-hover-bg)]',
+        danger ? 'text-[var(--panel-menu-danger)]' : 'text-[var(--panel-menu-text)]',
       ].join(' ')}
     >
       {label}
@@ -927,6 +1065,181 @@ function formatClock(date: Date) {
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
   return `${hours}:${minutes}`
+}
+
+type PanelAppearanceOptions = {
+  theme: 'dark' | 'light'
+  cardOpacity: number
+  backgroundOpacity: number
+  hasImageBackground: boolean
+}
+
+type PanelAppearance = {
+  bodyBackground: string
+  baseLayer: string
+  overlayLayer: string
+  sidebarSurface: string
+  rowHoverBg: string
+  rowActiveBg: string
+  rowAccent: string
+  badgeBg: string
+  badgeText: string
+  searchSurface: string
+  searchBorder: string
+  searchPlaceholder: string
+  flashBg: string
+  flashBorder: string
+  gridSurface: string
+  gridBorder: string
+  gridHoverBg: string
+  itemBaseBg: string
+  itemHoverBg: string
+  overlayBg: string
+  overlayCardBg: string
+  overlayCardBorder: string
+  timeText: string
+  textStrong: string
+  textSoft: string
+  textMuted: string
+  iconShellBg: string
+  iconShellShadow: string
+  settingsButtonBg: string
+  settingsButtonBorder: string
+  settingsButtonHoverBg: string
+  settingsButtonHoverBorder: string
+  settingsButtonIcon: string
+  menuBg: string
+  menuBorder: string
+  menuHoverBg: string
+  menuText: string
+  menuDanger: string
+}
+
+function buildPanelAppearance({
+  theme,
+  cardOpacity,
+  backgroundOpacity,
+  hasImageBackground,
+}: PanelAppearanceOptions): PanelAppearance {
+  const isDark = theme === 'dark'
+  const cardAlpha = clampOpacity(cardOpacity, 0, 1)
+  const backgroundAlpha = clampOpacity(backgroundOpacity, 0, 1)
+  const softCardAlpha = clampOpacity(cardOpacity * 0.76, 0, 1)
+  const hoverAlpha = clampOpacity(cardOpacity * 0.9, 0, 1)
+  const borderAlpha = clampOpacity(cardOpacity * (isDark ? 0.18 : 0.14), 0, 1)
+  const deep = [8, 14, 24] as const
+  const deepSoft = [17, 26, 42] as const
+  const light = [255, 255, 255] as const
+  const lightSoft = [242, 246, 252] as const
+  const baseLayer =
+    backgroundAlpha === 0
+      ? 'transparent'
+      : isDark
+        ? `linear-gradient(180deg, rgba(7,17,29,${backgroundAlpha}) 0%, rgba(11,22,38,${backgroundAlpha}) 100%)`
+        : `linear-gradient(180deg, rgba(251,252,255,${backgroundAlpha}) 0%, rgba(241,245,251,${backgroundAlpha}) 100%)`
+  const overlayAlpha = backgroundAlpha
+  const overlayLayer =
+    overlayAlpha === 0
+      ? 'transparent'
+      : hasImageBackground
+        ? isDark
+          ? `linear-gradient(180deg, rgba(6,12,22,${overlayAlpha}) 0%, rgba(7,12,24,${overlayAlpha}) 100%)`
+          : `linear-gradient(180deg, rgba(255,255,255,${overlayAlpha}) 0%, rgba(241,245,249,${overlayAlpha}) 100%)`
+        : isDark
+          ? `linear-gradient(180deg, rgba(8,14,24,${overlayAlpha}) 0%, rgba(12,20,34,${overlayAlpha}) 100%)`
+          : `linear-gradient(180deg, rgba(255,255,255,${overlayAlpha}) 0%, rgba(243,246,252,${overlayAlpha}) 100%)`
+
+  if (isDark) {
+    return {
+      bodyBackground: 'transparent',
+      baseLayer,
+      overlayLayer,
+      sidebarSurface: toRgba(deepSoft, cardAlpha),
+      rowHoverBg: toRgba(light, hoverAlpha * 0.22),
+      rowActiveBg: toRgba(light, hoverAlpha * 0.28),
+      rowAccent: '#F8FBFF',
+      badgeBg: toRgba(light, 0.1),
+      badgeText: '#C8D2E4',
+      searchSurface: toRgba(deepSoft, cardAlpha),
+      searchBorder: toRgba(light, borderAlpha),
+      searchPlaceholder: '#90A1BB',
+      flashBg: toRgba(deep, 0.92),
+      flashBorder: toRgba(light, 0.12),
+      gridSurface: toRgba(deepSoft, softCardAlpha),
+      gridBorder: toRgba(light, borderAlpha),
+      gridHoverBg: toRgba(light, cardAlpha * 0.16),
+      itemBaseBg: toRgba(light, softCardAlpha * 0.56),
+      itemHoverBg: toRgba(light, hoverAlpha * 0.36),
+      overlayBg: toRgba(deep, 0.42),
+      overlayCardBg: toRgba(deepSoft, clampOpacity(cardAlpha + 0.06, 0, 1)),
+      overlayCardBorder: toRgba(light, 0.14),
+      timeText: '#95A5BE',
+      textStrong: '#F5F8FD',
+      textSoft: '#D5DDEC',
+      textMuted: '#93A4BD',
+      iconShellBg: 'rgba(255,255,255,0.94)',
+      iconShellShadow: '0 10px 24px rgba(2, 6, 23, 0.24)',
+      settingsButtonBg: toRgba(deepSoft, cardAlpha),
+      settingsButtonBorder: toRgba(light, 0.12),
+      settingsButtonHoverBg: toRgba(light, 0.16),
+      settingsButtonHoverBorder: toRgba(light, 0.22),
+      settingsButtonIcon: '#E2E8F0',
+      menuBg: toRgba(deepSoft, 0.96),
+      menuBorder: toRgba(light, 0.12),
+      menuHoverBg: toRgba(light, 0.12),
+      menuText: '#E5EDF8',
+      menuDanger: '#FCA5A5',
+    }
+  }
+
+  return {
+    bodyBackground: 'transparent',
+    baseLayer,
+    overlayLayer,
+    sidebarSurface: toRgba(light, cardAlpha),
+    rowHoverBg: toRgba(lightSoft, hoverAlpha * 0.82),
+    rowActiveBg: toRgba(light, hoverAlpha * 0.96),
+    rowAccent: '#333333',
+    badgeBg: 'rgba(148,163,184,0.18)',
+    badgeText: '#64748B',
+    searchSurface: toRgba(light, cardAlpha),
+    searchBorder: 'rgba(148,163,184,0.2)',
+    searchPlaceholder: '#94A3B8',
+    flashBg: 'rgba(15,23,42,0.94)',
+    flashBorder: 'rgba(15,23,42,0.08)',
+    gridSurface: toRgba(light, softCardAlpha),
+    gridBorder: 'rgba(148,163,184,0.18)',
+    gridHoverBg: toRgba(lightSoft, cardAlpha * 0.72),
+    itemBaseBg: toRgba(light, softCardAlpha * 0.78),
+    itemHoverBg: toRgba(light, hoverAlpha),
+    overlayBg: 'rgba(255,255,255,0.42)',
+    overlayCardBg: toRgba(light, clampOpacity(cardAlpha + 0.04, 0, 1)),
+    overlayCardBorder: 'rgba(148,163,184,0.22)',
+    timeText: '#8B98AD',
+    textStrong: '#0F172A',
+    textSoft: '#475569',
+    textMuted: '#94A3B8',
+    iconShellBg: 'rgba(255,255,255,0.94)',
+    iconShellShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
+    settingsButtonBg: toRgba(light, cardAlpha),
+    settingsButtonBorder: 'rgba(15,23,42,0.08)',
+    settingsButtonHoverBg: 'rgba(255,255,255,0.98)',
+    settingsButtonHoverBorder: 'rgba(15,23,42,0.18)',
+    settingsButtonIcon: '#475569',
+    menuBg: 'rgba(255,255,255,0.98)',
+    menuBorder: 'rgba(148,163,184,0.18)',
+    menuHoverBg: 'rgba(241,245,249,0.9)',
+    menuText: '#334155',
+    menuDanger: '#E11D48',
+  }
+}
+
+function toRgba(color: readonly [number, number, number], alpha: number) {
+  return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${clampOpacity(alpha, 0, 1)})`
+}
+
+function clampOpacity(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
 }
 
 export default LauncherPanel
