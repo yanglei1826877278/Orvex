@@ -1,5 +1,7 @@
 use std::{
+  collections::hash_map::DefaultHasher,
   fs,
+  hash::{Hash, Hasher},
   path::{Path, PathBuf},
   process::Command,
   sync::Mutex,
@@ -107,6 +109,11 @@ impl StorageState {
     prepare_background_image_path(BackgroundType::Image, &source_path, &self.backgrounds_dir)
   }
 
+  pub fn cache_icon_from_source(&self, source_path: String) -> Result<Option<String>, String> {
+    let cache_id = build_icon_cache_key(&source_path);
+    extract_icon_to_cache(&cache_id, &source_path, &self.icons_dir)
+  }
+
   pub fn create_category(&self, payload: CreateCategoryPayload) -> Result<LauncherState, String> {
     let mut state = self.state.lock().map_err(|error| error.to_string())?;
     state.create_category(payload);
@@ -116,7 +123,17 @@ impl StorageState {
 
   pub fn create_item(&self, payload: CreateLauncherItemPayload) -> Result<LauncherState, String> {
     let mut state = self.state.lock().map_err(|error| error.to_string())?;
-    state.create_item(payload);
+    let icon_source_path = payload.icon_source_path.clone();
+    let item = state.create_item(payload);
+
+    if let Some(source_path) = icon_source_path.as_deref() {
+      if let Some(icon_relative_path) = extract_icon_to_cache(&item.id, source_path, &self.icons_dir)? {
+        if let Some(found) = state.items.iter_mut().find(|candidate| candidate.id == item.id) {
+          found.icon_path = Some(icon_relative_path);
+        }
+      }
+    }
+
     persist_json(&self.launcher_file, &*state).map_err(|error| error.to_string())?;
     Ok(state.clone())
   }
@@ -150,9 +167,20 @@ impl StorageState {
 
   pub fn update_item(&self, payload: UpdateLauncherItemPayload) -> Result<LauncherState, String> {
     let mut state = self.state.lock().map_err(|error| error.to_string())?;
+    let item_id = payload.id.clone();
+    let icon_source_path = payload.icon_source_path.clone();
     if !state.update_item(payload) {
       return Err("启动项不存在。".into());
     }
+
+    if let Some(source_path) = icon_source_path.as_deref() {
+      if let Some(icon_relative_path) = extract_icon_to_cache(&item_id, source_path, &self.icons_dir)? {
+        if let Some(found) = state.items.iter_mut().find(|candidate| candidate.id == item_id) {
+          found.icon_path = Some(icon_relative_path);
+        }
+      }
+    }
+
     persist_json(&self.launcher_file, &*state).map_err(|error| error.to_string())?;
     Ok(state.clone())
   }
@@ -408,6 +436,13 @@ fn prepare_background_image_path(
   Ok(target_path.display().to_string())
 }
 
+fn build_icon_cache_key(source_path: &str) -> String {
+  let normalized = source_path.trim().to_ascii_lowercase();
+  let mut hasher = DefaultHasher::new();
+  normalized.hash(&mut hasher);
+  format!("cached-{:016x}", hasher.finish())
+}
+
 fn extract_icon_to_cache(
   item_id: &str,
   source_path: &str,
@@ -467,6 +502,14 @@ pub fn import_background_image(
   storage: tauri::State<'_, StorageState>,
 ) -> Result<String, String> {
   storage.import_background_image(source_path)
+}
+
+#[tauri::command]
+pub fn cache_icon_from_source(
+  source_path: String,
+  storage: tauri::State<'_, StorageState>,
+) -> Result<Option<String>, String> {
+  storage.cache_icon_from_source(source_path)
 }
 
 #[tauri::command]

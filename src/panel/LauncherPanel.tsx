@@ -15,6 +15,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { WindowFrame } from '../components/WindowFrame'
 import { useLauncherState } from '../hooks/useLauncherState'
 import {
+  cacheIconFromSource,
   hideLauncherPanel,
   loadSettingsState,
   launchLauncherItemAsAdmin,
@@ -61,6 +62,7 @@ type SystemProjectOption = {
   alias: string
   kind: 'app' | 'url'
   path: string
+  iconSourcePath?: string | null
   summary: string
   accent: string
   monogram: string
@@ -85,6 +87,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     alias: 'Windows 计算器',
     kind: 'app',
     path: 'calc.exe',
+    iconSourcePath: 'C:\\Windows\\System32\\calc.exe',
     summary: '执行基础与科学计算。',
     accent: '#0ea5e9',
     monogram: 'CA',
@@ -96,6 +99,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     alias: 'Windows 记事本',
     kind: 'app',
     path: 'notepad.exe',
+    iconSourcePath: 'C:\\Windows\\System32\\notepad.exe',
     summary: '快速记录文本和临时内容。',
     accent: '#14b8a6',
     monogram: 'NP',
@@ -107,6 +111,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     alias: 'Command Prompt',
     kind: 'app',
     path: 'cmd.exe',
+    iconSourcePath: 'C:\\Windows\\System32\\cmd.exe',
     summary: '打开经典命令行终端。',
     accent: '#111827',
     monogram: 'CM',
@@ -118,6 +123,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     alias: 'Windows PowerShell',
     kind: 'app',
     path: 'powershell.exe',
+    iconSourcePath: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
     summary: '打开 PowerShell 命令环境。',
     accent: '#2563eb',
     monogram: 'PS',
@@ -129,6 +135,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     alias: 'Registry Editor',
     kind: 'app',
     path: 'regedit.exe',
+    iconSourcePath: 'C:\\Windows\\regedit.exe',
     summary: '管理 Windows 注册表项目。',
     accent: '#7c3aed',
     monogram: 'RE',
@@ -140,6 +147,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     alias: 'Task Manager',
     kind: 'app',
     path: 'taskmgr.exe',
+    iconSourcePath: 'C:\\Windows\\System32\\Taskmgr.exe',
     summary: '查看进程与系统资源占用。',
     accent: '#f59e0b',
     monogram: 'TM',
@@ -151,6 +159,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     alias: 'Control Panel',
     kind: 'app',
     path: 'control.exe',
+    iconSourcePath: 'C:\\Windows\\System32\\control.exe',
     summary: '打开经典控制面板入口。',
     accent: '#10b981',
     monogram: 'CP',
@@ -162,6 +171,7 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     alias: 'File Explorer',
     kind: 'app',
     path: 'explorer.exe',
+    iconSourcePath: 'C:\\Windows\\explorer.exe',
     summary: '快速打开 Windows 资源管理器。',
     accent: '#f97316',
     monogram: 'EX',
@@ -173,11 +183,25 @@ const SYSTEM_PROJECT_OPTIONS: SystemProjectOption[] = [
     alias: 'Remote Desktop',
     kind: 'app',
     path: 'mstsc.exe',
+    iconSourcePath: 'C:\\Windows\\System32\\mstsc.exe',
     summary: '发起远程桌面连接。',
     accent: '#06b6d4',
     monogram: 'RD',
   },
 ]
+
+const SYSTEM_PROJECT_FALLBACK_ICONS: Record<string, string> = {
+  'sys-settings': '⚙',
+  'sys-calc': '⌘',
+  'sys-notepad': '📝',
+  'sys-cmd': '⌁',
+  'sys-powershell': '⟫',
+  'sys-regedit': '▦',
+  'sys-taskmgr': '▤',
+  'sys-control': '◫',
+  'sys-explorer': '🗂',
+  'sys-rdp': '⎋',
+}
 
 function LauncherPanel() {
   const {
@@ -870,13 +894,13 @@ function LauncherPanel() {
         kind: option.kind,
         summary: option.summary,
         path: option.path,
+        iconSourcePath: option.iconSourcePath ?? null,
         hotkey: '',
         usage: '系统项目',
         monogram: option.monogram,
         accent: option.accent,
       })
       setSystemProjectDialog({ open: false, categoryId: '', categoryTitle: '' })
-      setFlash(`${option.name} 已添加到 ${systemProjectDialog.categoryTitle}`)
     } catch (caughtError) {
       setFlash(caughtError instanceof Error ? caughtError.message : '添加系统项目失败')
     }
@@ -1330,6 +1354,7 @@ function LauncherPanel() {
           <SystemProjectDialog
             categoryTitle={systemProjectDialog.categoryTitle}
             items={SYSTEM_PROJECT_OPTIONS}
+            storageDirectory={storageDirectory}
             existingPaths={
               new Set(
                 (launcherState?.items ?? [])
@@ -1429,16 +1454,55 @@ function ItemHoverCard({
 function SystemProjectDialog({
   categoryTitle,
   items,
+  storageDirectory,
   existingPaths,
   onClose,
   onSelect,
 }: {
   categoryTitle: string
   items: SystemProjectOption[]
+  storageDirectory: string
   existingPaths: Set<string>
   onClose: () => void
   onSelect: (item: SystemProjectOption) => void
 }) {
+  const [iconMap, setIconMap] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    let alive = true
+
+    async function loadIcons() {
+      const entries = await Promise.all(
+        items.map(async (item) => {
+          if (!item.iconSourcePath) {
+            return [item.id, ''] as const
+          }
+
+          try {
+            const iconPath = await cacheIconFromSource(item.iconSourcePath)
+            return [item.id, iconPath ?? ''] as const
+          } catch {
+            return [item.id, ''] as const
+          }
+        }),
+      )
+
+      if (!alive) {
+        return
+      }
+
+      setIconMap(
+        Object.fromEntries(entries.filter((entry) => entry[1])),
+      )
+    }
+
+    void loadIcons()
+
+    return () => {
+      alive = false
+    }
+  }, [items])
+
   const groupedItems = items.reduce<Record<string, SystemProjectOption[]>>((groups, item) => {
     if (!groups[item.group]) {
       groups[item.group] = []
@@ -1495,12 +1559,12 @@ function SystemProjectDialog({
                       onClick={() => onSelect(item)}
                     >
                       <div className="flex items-start gap-3">
-                        <div
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]"
-                          style={{ background: item.accent }}
-                        >
-                          {item.monogram}
-                        </div>
+                        <SystemProjectIcon
+                          iconPath={iconMap[item.id] ?? ''}
+                          storageDirectory={storageDirectory}
+                          accent={item.accent}
+                          fallback={SYSTEM_PROJECT_FALLBACK_ICONS[item.id] ?? item.monogram}
+                        />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="truncate text-[17px] font-semibold text-[#102033]">
@@ -1526,6 +1590,42 @@ function SystemProjectDialog({
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+function SystemProjectIcon({
+  iconPath,
+  storageDirectory,
+  accent,
+  fallback,
+}: {
+  iconPath: string
+  storageDirectory: string
+  accent: string
+  fallback: string
+}) {
+  if (iconPath && storageDirectory) {
+    return (
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.12)]">
+        <img
+          src={toAssetUrl(
+            `${storageDirectory.replace(/[\\/]+$/, '')}\\${iconPath.replace(/\//g, '\\')}`,
+          )}
+          alt=""
+          className="h-8 w-8 object-contain"
+          draggable={false}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] text-[18px] font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]"
+      style={{ background: accent }}
+    >
+      {fallback}
     </div>
   )
 }

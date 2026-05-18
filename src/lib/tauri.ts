@@ -25,6 +25,10 @@ export async function importBackgroundImage(sourcePath: string) {
   return invoke<string>('import_background_image', { sourcePath })
 }
 
+export async function cacheIconFromSource(sourcePath: string) {
+  return invoke<string | null>('cache_icon_from_source', { sourcePath })
+}
+
 export async function createCategory(payload: CreateCategoryPayload) {
   return invoke<LauncherState>('create_category', { payload })
 }

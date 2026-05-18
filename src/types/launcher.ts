@@ -93,6 +93,7 @@ export type CreateLauncherItemPayload = {
   kind: LauncherItemKind
   summary: string
   path: string
+  iconSourcePath?: string | null
   hotkey: string
   usage: string
   monogram: string
