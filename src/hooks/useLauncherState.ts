@@ -32,7 +32,7 @@ type LauncherStateResult = {
   storageDirectory: string
   loading: boolean
   error: string
-  addCategory: (payload: CreateCategoryPayload) => Promise<void>
+  addCategory: (payload: CreateCategoryPayload) => Promise<LauncherState>
   addLauncherItem: (payload: CreateLauncherItemPayload) => Promise<void>
   addLauncherItemFromPath: (payload: CreateLauncherItemFromPathPayload) => Promise<void>
   editCategory: (payload: UpdateCategoryPayload) => Promise<void>
@@ -110,6 +110,7 @@ export function useLauncherState(): LauncherStateResult {
   async function addCategory(payload: CreateCategoryPayload) {
     const nextState = await createCategory(payload)
     setLauncherState(nextState)
+    return nextState
   }
 
   async function addLauncherItem(payload: CreateLauncherItemPayload) {

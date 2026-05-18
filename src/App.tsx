@@ -1,10 +1,12 @@
 import {
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react'
@@ -14,12 +16,10 @@ import { WindowFrame } from './components/WindowFrame'
 import { useLauncherState } from './hooks/useLauncherState'
 import type {
   Category,
-  CreateCategoryPayload,
   CreateLauncherItemPayload,
   LauncherItem,
   LauncherItemKind,
   ThemeMode,
-  UpdateCategoryPayload,
   UpdateLauncherItemPayload,
 } from './types/launcher'
 
@@ -67,11 +67,14 @@ function App() {
   const [query, setQuery] = useState('')
   const [flash, setFlash] = useState('')
   const [openingLocationItemId, setOpeningLocationItemId] = useState('')
-  const [showCategoryCreate, setShowCategoryCreate] = useState(false)
   const [showItemCreate, setShowItemCreate] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [dragOverlayVisible, setDragOverlayVisible] = useState(false)
   const [dragOverIcons, setDragOverIcons] = useState(false)
+  const [creatingCategory, setCreatingCategory] = useState(false)
+  const [creatingCategoryTitle, setCreatingCategoryTitle] = useState('')
+  const [renamingCategoryId, setRenamingCategoryId] = useState('')
+  const [renamingCategoryTitle, setRenamingCategoryTitle] = useState('')
   const [sidebarMenu, setSidebarMenu] = useState<SidebarMenuState>({
     open: false,
     x: 0,
@@ -83,12 +86,6 @@ function App() {
     x: 0,
     y: 0,
     item: null,
-  })
-  const [categoryDraft, setCategoryDraft] = useState<CreateCategoryPayload>({
-    title: '',
-    caption: '',
-    description: '',
-    accent: '#1d4ed8',
   })
   const [itemDraft, setItemDraft] = useState<CreateLauncherItemPayload>({
     categoryId: 'dev',
@@ -102,7 +99,6 @@ function App() {
     monogram: '',
     accent: '#1d4ed8',
   })
-  const [categoryEditDraft, setCategoryEditDraft] = useState<UpdateCategoryPayload | null>(null)
   const [itemEditDraft, setItemEditDraft] = useState<UpdateLauncherItemPayload | null>(null)
   const [submittingCategory, setSubmittingCategory] = useState(false)
   const [submittingItem, setSubmittingItem] = useState(false)
@@ -110,8 +106,12 @@ function App() {
   const [editingItemId, setEditingItemId] = useState('')
   const [updatingTheme, setUpdatingTheme] = useState(false)
 
+  const appShellRef = useRef<HTMLDivElement | null>(null)
   const categoryRailRef = useRef<HTMLDivElement | null>(null)
   const iconGridRef = useRef<HTMLDivElement | null>(null)
+  const createCategoryInputRef = useRef<HTMLInputElement | null>(null)
+  const renameCategoryInputRef = useRef<HTMLInputElement | null>(null)
+  const renamingCategorySubmittingRef = useRef(false)
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
 
   const theme = settingsState?.theme ?? 'dark'
@@ -119,6 +119,32 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme
   }, [theme])
+
+  useEffect(() => {
+    if (!creatingCategory) {
+      return
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      createCategoryInputRef.current?.focus()
+      createCategoryInputRef.current?.select()
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [creatingCategory])
+
+  useEffect(() => {
+    if (!renamingCategoryId) {
+      return
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      renameCategoryInputRef.current?.focus()
+      renameCategoryInputRef.current?.select()
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [renamingCategoryId])
 
   const categories = useMemo(
     () => buildCategories(launcherState?.categories ?? [], launcherState?.items ?? []),
@@ -173,6 +199,41 @@ function App() {
       window.removeEventListener('click', close)
     }
   }, [itemMenu.open, sidebarMenu.open])
+
+  function handleAppContextMenuCapture(event: ReactMouseEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement | null
+    if (!target || !categoryRailRef.current?.contains(target)) {
+      return
+    }
+
+    event.preventDefault()
+
+    if (target.closest('[data-category-item="true"]')) {
+      return
+    }
+
+    if (target.closest('[data-category-create="true"]')) {
+      return
+    }
+
+    setItemMenu((state) => ({ ...state, open: false, item: null }))
+    setSidebarMenu({
+      open: true,
+      x: event.clientX,
+      y: event.clientY,
+      category: null,
+    })
+  }
+
+  useEffect(() => {
+    if (
+      renamingCategoryId &&
+      !(launcherState?.categories ?? []).some((category) => category.id === renamingCategoryId)
+    ) {
+      setRenamingCategoryId('')
+      setRenamingCategoryTitle('')
+    }
+  }, [launcherState, renamingCategoryId])
 
   useEffect(() => {
     let isMounted = true
@@ -290,24 +351,138 @@ function App() {
     }
   }, [addLauncherItemFromPath, categories, effectiveCategoryId])
 
-  async function handleCategorySubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  function cancelCreateCategory() {
+    setCreatingCategory(false)
+    setCreatingCategoryTitle('')
+  }
+
+  function cancelRenamingCategory() {
+    setRenamingCategoryId('')
+    setRenamingCategoryTitle('')
+  }
+
+  function openCreateCategoryInput() {
+    setSidebarMenu({ open: false, x: 0, y: 0, category: null })
+    cancelRenamingCategory()
+    setCreatingCategoryTitle('')
+    setCreatingCategory(true)
+  }
+
+  function openRenameCategoryInput(category: Category) {
+    if (category.id === 'all') {
+      return
+    }
+
+    setSidebarMenu({ open: false, x: 0, y: 0, category: null })
+    cancelCreateCategory()
+    setSelectedCategoryId(category.id)
+    setRenamingCategoryId(category.id)
+    setRenamingCategoryTitle(category.title)
+  }
+
+  async function handleCreateCategoryConfirm() {
+    const title = creatingCategoryTitle.trim()
+    if (!title || submittingCategory) {
+      if (!title) {
+        setFlash('分类名称不能为空')
+      }
+      return
+    }
+
     setSubmittingCategory(true)
 
     try {
-      await addCategory(categoryDraft)
-      setCategoryDraft({
-        title: '',
-        caption: '',
+      const previousIds = new Set((launcherState?.categories ?? []).map((category) => category.id))
+      const nextState = await addCategory({
+        title,
+        caption: '自定义分类',
         description: '',
         accent: '#1d4ed8',
       })
-      setShowCategoryCreate(false)
+      const createdCategory =
+        nextState.categories.find((category) => !previousIds.has(category.id)) ??
+        nextState.categories[nextState.categories.length - 1]
+
+      if (createdCategory) {
+        setSelectedCategoryId(createdCategory.id)
+      }
+
+      cancelCreateCategory()
       setFlash('分类已创建')
     } catch (caughtError) {
       setFlash(caughtError instanceof Error ? caughtError.message : '新建分类失败')
     } finally {
       setSubmittingCategory(false)
+    }
+  }
+
+  async function handleRenameCategoryConfirm() {
+    if (!renamingCategoryId || renamingCategorySubmittingRef.current) {
+      return
+    }
+
+    const category = (launcherState?.categories ?? []).find(
+      (entry) => entry.id === renamingCategoryId,
+    )
+    if (!category) {
+      cancelRenamingCategory()
+      return
+    }
+
+    const title = renamingCategoryTitle.trim()
+    if (!title) {
+      cancelRenamingCategory()
+      setFlash('分类名称不能为空')
+      return
+    }
+
+    if (title === category.title) {
+      cancelRenamingCategory()
+      return
+    }
+
+    renamingCategorySubmittingRef.current = true
+    setEditingCategoryId(category.id)
+
+    try {
+      await editCategory({
+        id: category.id,
+        title,
+        caption: category.caption,
+        description: category.description,
+        accent: category.accent,
+      })
+      cancelRenamingCategory()
+      setFlash('分类已更新')
+    } catch (caughtError) {
+      setFlash(caughtError instanceof Error ? caughtError.message : '更新分类失败')
+    } finally {
+      renamingCategorySubmittingRef.current = false
+      setEditingCategoryId('')
+    }
+  }
+
+  function handleCreateCategoryKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      void handleCreateCategoryConfirm()
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      cancelCreateCategory()
+    }
+  }
+
+  function handleRenameCategoryKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      void handleRenameCategoryConfirm()
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      cancelRenamingCategory()
     }
   }
 
@@ -333,24 +508,6 @@ function App() {
       setFlash(caughtError instanceof Error ? caughtError.message : '新建启动项失败')
     } finally {
       setSubmittingItem(false)
-    }
-  }
-
-  async function handleCategoryEditSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!categoryEditDraft) {
-      return
-    }
-
-    setEditingCategoryId(categoryEditDraft.id)
-    try {
-      await editCategory(categoryEditDraft)
-      setCategoryEditDraft(null)
-      setFlash('分类已更新')
-    } catch (caughtError) {
-      setFlash(caughtError instanceof Error ? caughtError.message : '更新分类失败')
-    } finally {
-      setEditingCategoryId('')
     }
   }
 
@@ -400,6 +557,9 @@ function App() {
   async function handleDeleteCategory(category: Category) {
     try {
       await removeCategory(category.id)
+      if (renamingCategoryId === category.id) {
+        cancelRenamingCategory()
+      }
       setFlash(`分类 ${category.title} 已删除`)
     } catch (caughtError) {
       setFlash(
@@ -443,11 +603,6 @@ function App() {
     event.preventDefault()
     setItemMenu((state) => ({ ...state, open: false, item: null }))
 
-    const bounds = categoryRailRef.current?.getBoundingClientRect()
-    if (!bounds) {
-      return
-    }
-
     setSidebarMenu({
       open: true,
       x: event.clientX,
@@ -462,6 +617,10 @@ function App() {
   ) {
     event.preventDefault()
     event.stopPropagation()
+    if (category.id === 'all') {
+      return
+    }
+
     setItemMenu((state) => ({ ...state, open: false, item: null }))
     setSidebarMenu({
       open: true,
@@ -486,14 +645,13 @@ function App() {
     })
   }
 
-  function openCreateCategorySheet() {
-    setSidebarMenu({ open: false, x: 0, y: 0, category: null })
-    setShowCategoryCreate(true)
-  }
-
   return (
     <WindowFrame>
-      <div className="relative min-h-screen overflow-hidden bg-[var(--bg)] text-[var(--ink)]">
+      <div
+        ref={appShellRef}
+        className="relative min-h-screen overflow-hidden bg-[var(--bg)] text-[var(--ink)]"
+        onContextMenuCapture={handleAppContextMenuCapture}
+      >
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(148,163,184,0.12),_transparent_20%),radial-gradient(circle_at_bottom_right,_rgba(148,163,184,0.08),_transparent_16%)]" />
         </div>
@@ -516,17 +674,48 @@ function App() {
                 <div className="space-y-1.5">
                   {categories.map((category) => {
                     const isActive = category.id === activeCategory.id
+                    const isRenaming = renamingCategoryId === category.id
+                    const rowClass = [
+                      'flex h-9 w-full items-center justify-between rounded-[12px] px-3 text-left text-sm transition',
+                      isActive || isRenaming
+                        ? 'bg-[var(--surface-soft)] text-[var(--paper)]'
+                        : 'text-[var(--muted)] hover:bg-[var(--surface-soft)] hover:text-[var(--paper)]',
+                    ].join(' ')
+
+                    if (isRenaming) {
+                      return (
+                        <div key={category.id} className={rowClass}>
+                          <input
+                            ref={renameCategoryInputRef}
+                            value={renamingCategoryTitle}
+                            onChange={(event) => setRenamingCategoryTitle(event.target.value)}
+                            onKeyDown={handleRenameCategoryKeyDown}
+                            onBlur={() => {
+                              void handleRenameCategoryConfirm()
+                            }}
+                            disabled={editingCategoryId === category.id}
+                            className="w-full bg-transparent pr-2 text-[13px] font-medium text-[var(--paper)] outline-none placeholder:text-[var(--soft)] disabled:opacity-60"
+                          />
+                          <span
+                            className="rounded-full border px-2 py-0.5 text-[10px] font-medium"
+                            style={{
+                              borderColor: 'var(--line)',
+                              background: 'var(--surface-soft)',
+                              color: 'var(--soft)',
+                            }}
+                          >
+                            {category.count}
+                          </span>
+                        </div>
+                      )
+                    }
 
                     return (
                       <button
                         key={category.id}
                         type="button"
-                        className={[
-                          'flex h-9 w-full items-center justify-between rounded-[12px] px-3 text-left text-sm transition',
-                          isActive
-                            ? 'bg-[var(--surface-soft)] text-[var(--paper)]'
-                            : 'text-[var(--muted)] hover:bg-[var(--surface-soft)] hover:text-[var(--paper)]',
-                        ].join(' ')}
+                        data-category-item="true"
+                        className={rowClass}
                         onClick={() => setSelectedCategoryId(category.id)}
                         onContextMenu={(event) => handleCategoryContextMenu(event, category)}
                         title={category.caption}
@@ -547,6 +736,27 @@ function App() {
                       </button>
                     )
                   })}
+                  {creatingCategory ? (
+                    <div
+                      data-category-create="true"
+                      className="flex h-9 w-full items-center rounded-[12px] bg-[var(--surface-soft)] px-3 text-[var(--paper)]"
+                    >
+                      <input
+                        ref={createCategoryInputRef}
+                        value={creatingCategoryTitle}
+                        onChange={(event) => setCreatingCategoryTitle(event.target.value)}
+                        onKeyDown={handleCreateCategoryKeyDown}
+                        onBlur={() => {
+                          if (!submittingCategory) {
+                            cancelCreateCategory()
+                          }
+                        }}
+                        disabled={submittingCategory}
+                        placeholder="输入分类名称"
+                        className="w-full bg-transparent text-[13px] font-medium text-[var(--paper)] outline-none placeholder:text-[var(--soft)] disabled:opacity-60"
+                      />
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -558,7 +768,7 @@ function App() {
                   color: 'var(--paper)',
                   background: 'var(--surface-soft)',
                 }}
-                onClick={openCreateCategorySheet}
+                onClick={openCreateCategoryInput}
               >
                 + 新建分类
               </button>
@@ -727,20 +937,13 @@ function App() {
             {sidebarMenu.category ? (
               <>
                 <ContextMenuItem
-                  label="编辑分类"
+                  label="重命名"
                   onClick={() => {
-                    setCategoryEditDraft({
-                      id: sidebarMenu.category!.id,
-                      title: sidebarMenu.category!.title,
-                      caption: sidebarMenu.category!.caption,
-                      description: sidebarMenu.category!.description,
-                      accent: sidebarMenu.category!.accent,
-                    })
-                    setSidebarMenu((state) => ({ ...state, open: false, category: null }))
+                    openRenameCategoryInput(sidebarMenu.category!)
                   }}
                 />
                 <ContextMenuItem
-                  label="删除分类"
+                  label="删除"
                   danger
                   onClick={() => {
                     void handleDeleteCategory(sidebarMenu.category!)
@@ -748,8 +951,9 @@ function App() {
                   }}
                 />
               </>
-            ) : null}
-            <ContextMenuItem label="新建分类" onClick={openCreateCategorySheet} />
+            ) : (
+              <ContextMenuItem label="新建分类" onClick={openCreateCategoryInput} />
+            )}
           </ContextMenu>
         ) : null}
 
@@ -806,51 +1010,6 @@ function App() {
               {updatingTheme ? '正在切换主题...' : '主题会自动保存在本地设置中。'}
             </div>
           </div>
-        </Sheet>
-
-        <Sheet
-          open={showCategoryCreate}
-          title="新建分类"
-          onClose={() => setShowCategoryCreate(false)}
-        >
-          <form className="space-y-3" onSubmit={handleCategorySubmit}>
-            <Field
-              label="名称"
-              value={categoryDraft.title}
-              onChange={(value) => setCategoryDraft((draft) => ({ ...draft, title: value }))}
-              placeholder="开发工具"
-            />
-            <Field
-              label="短标语"
-              value={categoryDraft.caption}
-              onChange={(value) => setCategoryDraft((draft) => ({ ...draft, caption: value }))}
-              placeholder="编码与交付"
-            />
-            <Field
-              label="描述"
-              value={categoryDraft.description}
-              onChange={(value) =>
-                setCategoryDraft((draft) => ({ ...draft, description: value }))
-              }
-              placeholder="把常用工具聚成一栏"
-            />
-            <AccentPicker
-              label="强调色"
-              value={categoryDraft.accent}
-              onChange={(value) => setCategoryDraft((draft) => ({ ...draft, accent: value }))}
-            />
-            <button
-              type="submit"
-              disabled={submittingCategory}
-              className="w-full rounded-[16px] px-4 py-3 text-sm font-semibold transition disabled:opacity-60"
-              style={{
-                background: 'var(--accent)',
-                color: 'var(--accent-contrast)',
-              }}
-            >
-              {submittingCategory ? '正在创建分类...' : '创建分类'}
-            </button>
-          </form>
         </Sheet>
 
         <Sheet
@@ -953,67 +1112,6 @@ function App() {
               {submittingItem ? '正在创建启动项...' : '创建启动项'}
             </button>
           </form>
-        </Sheet>
-
-        <Sheet
-          open={categoryEditDraft !== null}
-          title="编辑分类"
-          onClose={() => setCategoryEditDraft(null)}
-        >
-          {categoryEditDraft ? (
-            <form className="space-y-3" onSubmit={handleCategoryEditSubmit}>
-              <Field
-                label="名称"
-                value={categoryEditDraft.title}
-                onChange={(value) =>
-                  setCategoryEditDraft((draft) =>
-                    draft ? { ...draft, title: value } : draft,
-                  )
-                }
-                placeholder="开发工具"
-              />
-              <Field
-                label="短标语"
-                value={categoryEditDraft.caption}
-                onChange={(value) =>
-                  setCategoryEditDraft((draft) =>
-                    draft ? { ...draft, caption: value } : draft,
-                  )
-                }
-                placeholder="编码与交付"
-              />
-              <Field
-                label="描述"
-                value={categoryEditDraft.description}
-                onChange={(value) =>
-                  setCategoryEditDraft((draft) =>
-                    draft ? { ...draft, description: value } : draft,
-                  )
-                }
-                placeholder="把常用工具聚成一栏"
-              />
-              <AccentPicker
-                label="强调色"
-                value={categoryEditDraft.accent}
-                onChange={(value) =>
-                  setCategoryEditDraft((draft) =>
-                    draft ? { ...draft, accent: value } : draft,
-                  )
-                }
-              />
-              <button
-                type="submit"
-                disabled={editingCategoryId === categoryEditDraft.id}
-                className="w-full rounded-[16px] px-4 py-3 text-sm font-semibold transition disabled:opacity-60"
-                style={{
-                  background: 'var(--accent)',
-                  color: 'var(--accent-contrast)',
-                }}
-              >
-                {editingCategoryId === categoryEditDraft.id ? '正在保存分类...' : '保存分类'}
-              </button>
-            </form>
-          ) : null}
         </Sheet>
 
         <Sheet
@@ -1321,14 +1419,34 @@ function ContextMenu({
   y: number
   children: ReactNode
 }) {
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const [position, setPosition] = useState({ left: x, top: y })
+
+  useLayoutEffect(() => {
+    const menu = menuRef.current
+    if (!menu) {
+      return
+    }
+
+    const { width, height } = menu.getBoundingClientRect()
+    const margin = 8
+    const left =
+      x + width > window.innerWidth - margin ? Math.max(margin, x - width) : Math.max(margin, x)
+    const top =
+      y + height > window.innerHeight - margin
+        ? Math.max(margin, y - height)
+        : Math.max(margin, y)
+
+    setPosition({ left, top })
+  }, [x, y])
+
   return (
     <div
-      className="fixed z-[90] min-w-[190px] rounded-[16px] border p-2 shadow-[0_24px_80px_rgba(15,23,42,0.14)]"
+      ref={menuRef}
+      className="animate-context-menu fixed z-[90] min-w-[132px] rounded-[8px] bg-white py-1 shadow-[0_4px_16px_rgba(0,0,0,0.12)]"
       style={{
-        left: x,
-        top: y,
-        borderColor: 'var(--line)',
-        background: 'var(--surface-elevated)',
+        left: position.left,
+        top: position.top,
       }}
     >
       {children}
@@ -1353,12 +1471,12 @@ function ContextMenuItem({
       disabled={disabled}
       onClick={onClick}
       className={[
-        'flex w-full items-center rounded-[12px] px-3 py-2 text-left text-sm transition',
+        'flex h-8 w-full items-center px-4 text-left text-[13px] transition-colors duration-100',
         disabled
-          ? 'cursor-not-allowed text-[var(--soft)] opacity-60'
+          ? 'cursor-not-allowed text-[#bdbdbd]'
           : danger
-            ? 'text-[#dc2626] hover:bg-[rgba(220,38,38,0.08)]'
-            : 'text-[var(--paper)] hover:bg-[var(--surface-soft)]',
+            ? 'text-[#e53935] hover:bg-[#f5f5f5]'
+            : 'text-[#333333] hover:bg-[#f5f5f5]',
       ].join(' ')}
     >
       {label}

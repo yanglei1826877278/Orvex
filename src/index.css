@@ -160,7 +160,23 @@ body,
     }
   }
 
+  @keyframes context-menu-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   .animate-fade-up {
     animation: fade-up 0.35s ease-out both;
+  }
+
+  .animate-context-menu {
+    animation: context-menu-fade-in 0.12s ease-out both;
   }
 }
