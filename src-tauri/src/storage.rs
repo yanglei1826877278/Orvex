@@ -216,6 +216,7 @@ impl StorageState {
     settings.background_type = payload.background_type;
     settings.background_image_path = payload.background_image_path;
     settings.frosted_glass = payload.frosted_glass;
+    settings.frosted_glass_strength = payload.frosted_glass_strength.clamp(0, 32);
     settings.sidebar_opacity = payload.sidebar_opacity.clamp(0, 100);
     settings.content_opacity = payload.content_opacity.clamp(0, 100);
     settings.background_opacity = payload.background_opacity.clamp(0, 100);

@@ -146,7 +146,7 @@ export function WindowFrame({
               ].join(' ')}
               style={{
                 background: immersiveHeader ? headerContentBackground : 'transparent',
-                backdropFilter: immersiveHeader ? 'blur(14px)' : 'none',
+                backdropFilter: immersiveHeader ? 'blur(var(--panel-blur-strength, 14px))' : 'none',
               }}
             >
               <div
@@ -196,6 +196,7 @@ export function WindowFrame({
             ].join(' ')}
             style={{
               background: immersiveHeader ? headerContentBackground : 'transparent',
+              backdropFilter: immersiveHeader ? 'blur(var(--panel-blur-strength, 14px))' : 'none',
             }}
           >
             <FrameButton

@@ -58,6 +58,7 @@ function SettingsWindow() {
       draft.backgroundType !== settingsState.backgroundType ||
       draft.backgroundImagePath !== settingsState.backgroundImagePath ||
       draft.frostedGlass !== settingsState.frostedGlass ||
+      draft.frostedGlassStrength !== settingsState.frostedGlassStrength ||
       draft.sidebarOpacity !== settingsState.sidebarOpacity ||
       draft.contentOpacity !== settingsState.contentOpacity ||
       draft.backgroundOpacity !== settingsState.backgroundOpacity ||
@@ -130,6 +131,7 @@ function SettingsWindow() {
       await updateSettings({
         ...draft,
         backupRetentionDays: clampNumber(draft.backupRetentionDays, 1, 365),
+        frostedGlassStrength: clampNumber(draft.frostedGlassStrength, 0, 32),
         sidebarOpacity: clampNumber(draft.sidebarOpacity, 0, 100),
         contentOpacity: clampNumber(draft.contentOpacity, 0, 100),
         backgroundOpacity: clampNumber(draft.backgroundOpacity, 0, 100),
@@ -383,10 +385,22 @@ function SettingsWindow() {
                 </SettingRow>
               ) : null}
               <SettingRow label="毛玻璃效果">
-                <Toggle
-                  checked={draft.frostedGlass}
-                  onChange={(checked) => updateDraft({ frostedGlass: checked })}
-                />
+                <SettingField hint="关闭后不启用模糊，开启后可继续调节模糊强度。">
+                  <div className="flex min-w-[320px] flex-col items-end gap-3">
+                    <Toggle
+                      checked={draft.frostedGlass}
+                      onChange={(checked) => updateDraft({ frostedGlass: checked })}
+                    />
+                    <SliderInput
+                      min={0}
+                      max={32}
+                      value={draft.frostedGlassStrength}
+                      suffix="px"
+                      disabled={!draft.frostedGlass}
+                      onChange={(value) => updateDraft({ frostedGlassStrength: value })}
+                    />
+                  </div>
+                </SettingField>
               </SettingRow>
               <SettingRow label="左侧列表透明度">
                 <SliderInput
@@ -640,6 +654,28 @@ function TypographyControl({
           )
         })}
       </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[12px] text-[#777777]">自定义</span>
+          <label
+            className="relative block h-9 w-9 cursor-pointer overflow-hidden rounded-full border border-[#d9d9d9] bg-white"
+            style={{ boxShadow: `inset 0 0 0 6px ${normalizeHexColor(color)}` }}
+          >
+            <input
+              type="color"
+              value={toColorInputValue(color)}
+              onChange={(event) => onColorChange(event.target.value)}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
+          </label>
+        </div>
+        <input
+          type="text"
+          value={toColorInputValue(color)}
+          onChange={(event) => onColorChange(event.target.value)}
+          className="h-9 w-[118px] rounded-[10px] border border-[#dddddd] bg-white px-3 text-[12px] uppercase tracking-[0.08em] text-[#444444] outline-none"
+        />
+      </div>
     </div>
   )
 }
@@ -767,21 +803,33 @@ function TextInput({
 function SliderInput({
   value,
   onChange,
+  min = 0,
+  max = 100,
+  suffix = '',
+  disabled = false,
 }: {
   value: number
+  min?: number
+  max?: number
+  suffix?: string
+  disabled?: boolean
   onChange: (value: number) => void
 }) {
   return (
     <div className="ml-auto flex w-[280px] items-center gap-3">
       <input
         type="range"
-        min={0}
-        max={100}
+        min={min}
+        max={max}
         value={value}
-        onChange={(event) => onChange(clampNumber(Number(event.target.value), 0, 100))}
-        className="h-2 flex-1 accent-[#333333]"
+        disabled={disabled}
+        onChange={(event) => onChange(clampNumber(Number(event.target.value), min, max))}
+        className="h-2 flex-1 accent-[#333333] disabled:cursor-not-allowed disabled:opacity-40"
       />
-      <span className="w-9 text-right text-[13px] text-[#666666]">{value}</span>
+      <span className="w-12 text-right text-[13px] text-[#666666]">
+        {value}
+        {suffix}
+      </span>
     </div>
   )
 }
@@ -990,7 +1038,17 @@ function clampNumber(value: number, min: number, max: number) {
 }
 
 function normalizeHexColor(value: string) {
-  return value.trim().toLowerCase()
+  const trimmed = value.trim()
+  const candidate = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed
+  if (/^[0-9a-fA-F]{6}$/.test(candidate)) {
+    return `#${candidate.toLowerCase()}`
+  }
+
+  return '#333333'
+}
+
+function toColorInputValue(value: string) {
+  return normalizeHexColor(value)
 }
 
 export default SettingsWindow

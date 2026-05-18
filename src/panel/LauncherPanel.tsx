@@ -95,6 +95,7 @@ function LauncherPanel() {
   const sidebarOpacity = (effectiveSettings?.sidebarOpacity ?? 92) / 100
   const contentOpacity = (effectiveSettings?.contentOpacity ?? 92) / 100
   const frostedGlassEnabled = effectiveSettings?.frostedGlass !== false
+  const frostedGlassStrength = effectiveSettings?.frostedGlassStrength ?? 14
   const transparentDragonHeader = effectiveSettings?.transparentDragonHeader === true
   const appearanceSettings = effectiveSettings?.appearance
   const categoryFontSize = appearanceSettings?.category_font_size ?? 14
@@ -150,8 +151,9 @@ function LauncherPanel() {
         '--panel-menu-hover-bg': panelAppearance.menuHoverBg,
         '--panel-menu-text': panelAppearance.menuText,
         '--panel-menu-danger': panelAppearance.menuDanger,
+        '--panel-blur-strength': `${frostedGlassStrength}px`,
       }) as CSSProperties,
-    [panelAppearance],
+    [frostedGlassStrength, panelAppearance],
   )
 
   useEffect(() => {
@@ -712,10 +714,11 @@ function LauncherPanel() {
           />
         ) : null}
         <div
-          className={['absolute inset-0', frostedGlassEnabled ? 'backdrop-blur-[22px]' : ''].join(
-            ' ',
-          )}
-          style={{ background: panelAppearance.overlayLayer }}
+          className="absolute inset-0"
+          style={{
+            background: panelAppearance.overlayLayer,
+            backdropFilter: frostedGlassEnabled ? `blur(${frostedGlassStrength + 8}px)` : 'none',
+          }}
         />
 
         <div className="relative z-10 grid h-full grid-cols-[160px_minmax(0,1fr)]">
@@ -874,27 +877,23 @@ function LauncherPanel() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="搜索或直接输入..."
-                className={[
-                  'w-full rounded-[16px] border px-4 py-3 text-sm outline-none transition placeholder:text-[#888]',
-                  frostedGlassEnabled ? 'backdrop-blur-[14px]' : '',
-                ].join(' ')}
+                className="w-full rounded-[16px] border px-4 py-3 text-sm outline-none transition placeholder:text-[#888]"
                 style={{
                   background: panelAppearance.searchSurface,
                   borderColor: panelAppearance.searchBorder,
                   color: panelAppearance.textStrong,
+                  backdropFilter: frostedGlassEnabled ? `blur(${frostedGlassStrength}px)` : 'none',
                 }}
               />
             </div>
 
             {flash ? (
               <div
-                className={[
-                  'mt-3 rounded-[14px] border px-3 py-2 text-[12px] text-[var(--panel-text-strong)]',
-                  frostedGlassEnabled ? 'backdrop-blur-[14px]' : '',
-                ].join(' ')}
+                className="mt-3 rounded-[14px] border px-3 py-2 text-[12px] text-[var(--panel-text-strong)]"
                 style={{
                   background: panelAppearance.flashBg,
                   borderColor: panelAppearance.flashBorder,
+                  backdropFilter: frostedGlassEnabled ? `blur(${frostedGlassStrength}px)` : 'none',
                 }}
               >
                 {flash}
@@ -904,13 +903,11 @@ function LauncherPanel() {
             <div className="relative mt-4 min-h-0 flex-1">
               <div
                 ref={iconGridRef}
-                className={[
-                  'h-full overflow-y-auto rounded-[16px] border pr-1 transition',
-                  frostedGlassEnabled ? 'backdrop-blur-[14px]' : '',
-                ].join(' ')}
+                className="h-full overflow-y-auto rounded-[16px] border pr-1 transition"
                 style={{
                   background: dragOverIcons ? panelAppearance.gridHoverBg : panelAppearance.gridSurface,
                   borderColor: panelAppearance.gridBorder,
+                  backdropFilter: frostedGlassEnabled ? `blur(${frostedGlassStrength}px)` : 'none',
                 }}
               >
                 <div className="grid min-h-full auto-rows-max content-start grid-cols-[repeat(auto-fill,minmax(80px,1fr))] items-start gap-3 rounded-[16px] border border-transparent p-2 transition">
@@ -921,8 +918,12 @@ function LauncherPanel() {
                       className={[
                         'group flex min-h-[96px] flex-col items-center justify-start rounded-[14px] border border-transparent px-2 py-2 transition',
                         'bg-[var(--panel-item-bg)] hover:-translate-y-0.5 hover:bg-[var(--panel-item-hover-bg)]',
-                        frostedGlassEnabled ? 'backdrop-blur-[12px]' : '',
                       ].join(' ')}
+                      style={{
+                        backdropFilter: frostedGlassEnabled
+                          ? `blur(${Math.max(0, frostedGlassStrength - 2)}px)`
+                          : 'none',
+                      }}
                       onMouseEnter={(event) => {
                         const rect = event.currentTarget.getBoundingClientRect()
                         setHoverCard({
@@ -976,13 +977,11 @@ function LauncherPanel() {
                   style={{ background: panelAppearance.overlayBg }}
                 >
                   <div
-                    className={[
-                      'rounded-[18px] border px-5 py-4 text-center shadow-[0_12px_36px_rgba(15,23,42,0.12)]',
-                      frostedGlassEnabled ? 'backdrop-blur-[16px]' : '',
-                    ].join(' ')}
+                    className="rounded-[18px] border px-5 py-4 text-center shadow-[0_12px_36px_rgba(15,23,42,0.12)]"
                     style={{
                       background: panelAppearance.overlayCardBg,
                       borderColor: panelAppearance.overlayCardBorder,
+                      backdropFilter: frostedGlassEnabled ? `blur(${frostedGlassStrength + 2}px)` : 'none',
                     }}
                   >
                     <p className="text-[15px] font-semibold text-[var(--panel-text-strong)]">
@@ -1126,12 +1125,12 @@ function SettingsEntryButton({
       onClick={onClick}
       className={[
         'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition active:scale-95',
-        theme === 'dark' ? 'backdrop-blur-[14px]' : '',
       ].join(' ')}
       style={{
         borderColor: 'var(--panel-settings-border)',
         background: 'var(--panel-settings-bg)',
         color: 'var(--panel-settings-icon)',
+        backdropFilter: theme === 'dark' ? 'blur(var(--panel-blur-strength))' : 'none',
       }}
       onMouseEnter={(event) => {
         event.currentTarget.style.background = 'var(--panel-settings-hover-bg)'

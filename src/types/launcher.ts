@@ -60,6 +60,7 @@ export type SettingsState = {
   backgroundType: BackgroundType
   backgroundImagePath: string
   frostedGlass: boolean
+  frostedGlassStrength: number
   sidebarOpacity: number
   contentOpacity: number
   backgroundOpacity: number
@@ -121,6 +122,7 @@ export type UpdateSettingsPayload = {
   backgroundType: BackgroundType
   backgroundImagePath: string
   frostedGlass: boolean
+  frostedGlassStrength: number
   sidebarOpacity: number
   contentOpacity: number
   backgroundOpacity: number
