@@ -78,7 +78,7 @@ function LauncherPanel() {
 
   return (
     <WindowFrame title="Orvex 面板" subtitle="快速启动" compact variant="light">
-      <div className="h-[calc(100vh-44px)] w-full overflow-hidden bg-[rgba(255,255,255,0.92)] font-[system-ui] text-slate-900 backdrop-blur-[20px]">
+      <div className="h-[calc(100vh-44px)] w-full overflow-hidden bg-[rgba(255,255,255,0.88)] font-[system-ui] text-slate-900 backdrop-blur-[20px]">
         <div className="grid h-full grid-cols-[160px_minmax(0,1fr)]">
           <aside className="flex h-full flex-col border-r border-slate-200/70 bg-white/35 px-3 py-4">
             <div className="space-y-1">
@@ -91,13 +91,24 @@ function LauncherPanel() {
                     className={[
                       'relative flex h-9 w-full items-center justify-between rounded-[10px] px-3 text-left text-[13px] transition',
                       isActive
-                        ? 'bg-slate-100/90 text-slate-950'
+                        ? ''
                         : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900',
                     ].join(' ')}
+                    style={
+                      isActive
+                        ? {
+                            backgroundColor: '#f0f0f0',
+                            color: '#111111',
+                          }
+                        : undefined
+                    }
                     onClick={() => setSelectedCategoryId(category.id)}
                   >
                     {isActive ? (
-                      <span className="absolute left-0 top-1.5 h-6 w-[3px] rounded-r-full bg-sky-500" />
+                      <span
+                        className="absolute left-0 top-1.5 h-6 w-[3px] rounded-r-full"
+                        style={{ backgroundColor: '#333333' }}
+                      />
                     ) : null}
                     <span className="truncate pl-1">{category.title}</span>
                     <span className="rounded-full bg-slate-200/80 px-2 py-0.5 text-[10px] font-medium text-slate-500">
@@ -108,8 +119,8 @@ function LauncherPanel() {
               })}
             </div>
 
-            <div className="mt-auto px-2 pt-4">
-              <div className="rounded-[10px] bg-slate-100/80 px-3 py-2 text-center text-lg font-semibold text-slate-900">
+            <div className="mt-auto px-4 pt-4">
+              <div className="text-left text-[28px] font-light text-[#999999]">
                 {timeText}
               </div>
             </div>
@@ -121,7 +132,7 @@ function LauncherPanel() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="搜索或直接输入..."
-                className="w-full rounded-[12px] border border-slate-200 bg-white/85 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:bg-white"
+                className="w-full rounded-[8px] border-none bg-[#f5f5f5] px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-[#f5f5f5]"
               />
             </div>
 
