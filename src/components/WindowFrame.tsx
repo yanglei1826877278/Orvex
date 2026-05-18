@@ -48,9 +48,13 @@ export function WindowFrame({
     : isLight
       ? 'rgba(255,255,255,0.88)'
       : 'var(--surface)'
-  const headerBackground = isLight
-    ? 'rgba(255,255,255,0.88)'
-    : 'var(--surface-elevated)'
+  const headerBackground = transparentSurface
+    ? isLight
+      ? '#ffffff'
+      : 'var(--surface-elevated)'
+    : isLight
+      ? 'rgba(255,255,255,0.98)'
+      : 'var(--surface-elevated)'
   const titleColor = isLight ? '#0f172a' : 'var(--paper)'
   const subtitleColor = isLight ? '#64748b' : 'var(--soft)'
   const logoBackground = isLight ? 'rgba(15,23,42,0.04)' : 'var(--surface-soft)'

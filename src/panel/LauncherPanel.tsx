@@ -638,13 +638,12 @@ function LauncherPanel() {
         <div className="relative z-10 grid h-full grid-cols-[160px_minmax(0,1fr)]">
           <aside
             ref={categoryRailRef}
-            className={[
-              'flex h-full flex-col border-r px-3 py-4',
-              frostedGlassEnabled ? 'backdrop-blur-[18px]' : '',
-            ].join(' ')}
+            className="flex h-full flex-col border-r px-3 py-4"
             style={{
               background: panelAppearance.sidebarSurface,
-              borderColor: panelAppearance.gridBorder,
+              backdropFilter: 'blur(0px)',
+              borderRightColor: 'rgba(0, 0, 0, 0.06)',
+              borderRightStyle: 'solid',
             }}
             onContextMenuCapture={handleSidebarContextMenuCapture}
             onContextMenu={handleSidebarContextMenu}
@@ -656,10 +655,9 @@ function LauncherPanel() {
                 const rowClass = [
                   'relative flex h-9 w-full items-center justify-between rounded-[12px] px-3 text-left text-[13px] transition-colors',
                   isActive || isRenaming
-                    ? 'text-[var(--panel-text-strong)]'
-                    : 'text-[var(--panel-text-soft)] hover:bg-[var(--panel-row-hover-bg)] hover:text-[var(--panel-text-strong)]',
+                    ? 'font-semibold text-[#111]'
+                    : 'font-normal text-[#444] hover:bg-transparent hover:text-[#333]',
                 ].join(' ')
-                const rowStyle = isActive || isRenaming ? { backgroundColor: panelAppearance.rowActiveBg } : undefined
 
                 if (isRenaming) {
                   return (
@@ -667,11 +665,10 @@ function LauncherPanel() {
                       key={category.id}
                       data-category-item="true"
                       className={rowClass}
-                      style={rowStyle}
                     >
                       <span
-                        className="absolute left-0 top-1.5 h-6 w-[3px] rounded-r-full"
-                        style={{ backgroundColor: panelAppearance.rowAccent }}
+                        className="absolute left-0 top-1.5 h-6 w-[2px]"
+                        style={{ backgroundColor: '#111' }}
                       />
                       <input
                         ref={renameCategoryInputRef}
@@ -682,13 +679,13 @@ function LauncherPanel() {
                           void handleRenameCategoryConfirm()
                         }}
                         disabled={editingCategoryId === category.id}
-                        className="w-full bg-transparent pl-1 pr-2 text-[13px] text-[var(--panel-text-strong)] outline-none disabled:opacity-60"
+                        className="w-full bg-transparent pl-1 pr-2 text-[13px] text-[#111] outline-none disabled:opacity-60"
                       />
                       <span
                         className="rounded-full px-2 py-0.5 text-[10px] font-medium"
                         style={{
-                          backgroundColor: panelAppearance.badgeBg,
-                          color: panelAppearance.badgeText,
+                          backgroundColor: '#111',
+                          color: '#fff',
                         }}
                       >
                         {category.count}
@@ -703,22 +700,21 @@ function LauncherPanel() {
                     type="button"
                     data-category-item="true"
                     className={rowClass}
-                    style={rowStyle}
                     onClick={() => setSelectedCategoryId(category.id)}
                     onContextMenu={(event) => handleCategoryContextMenu(event, category)}
                   >
                     {isActive ? (
                       <span
-                        className="absolute left-0 top-1.5 h-6 w-[3px] rounded-r-full"
-                        style={{ backgroundColor: panelAppearance.rowAccent }}
+                        className="absolute left-0 top-1.5 h-6 w-[2px]"
+                        style={{ backgroundColor: '#111' }}
                       />
                     ) : null}
                     <span className="truncate pl-1">{category.title}</span>
                     <span
                       className="rounded-full px-2 py-0.5 text-[10px] font-medium"
                       style={{
-                        backgroundColor: panelAppearance.badgeBg,
-                        color: panelAppearance.badgeText,
+                        backgroundColor: isActive ? '#111' : '#eee',
+                        color: isActive ? '#fff' : '#999',
                       }}
                     >
                       {category.count}
@@ -756,7 +752,7 @@ function LauncherPanel() {
             </div>
 
             <div className="mt-auto px-4 pt-4">
-              <div className="text-left text-[28px] font-light text-[var(--panel-time-text)]">
+              <div className="text-left text-[28px] font-light text-[#555]">
                 {timeText}
               </div>
             </div>
@@ -769,7 +765,7 @@ function LauncherPanel() {
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="搜索或直接输入..."
                 className={[
-                  'w-full rounded-[16px] border px-4 py-3 text-sm outline-none transition placeholder:text-[var(--panel-search-placeholder)]',
+                  'w-full rounded-[16px] border px-4 py-3 text-sm outline-none transition placeholder:text-[#888]',
                   frostedGlassEnabled ? 'backdrop-blur-[14px]' : '',
                 ].join(' ')}
                 style={{
@@ -821,7 +817,10 @@ function LauncherPanel() {
                     >
                       <PanelIcon item={item} storageDirectory={storageDirectory} />
                       {showIconTitles ? (
-                        <span className="mt-2 max-w-full whitespace-normal break-all text-center text-[12px] leading-4 text-[var(--panel-text-soft)] transition-colors group-hover:text-[var(--panel-text-strong)]">
+                        <span
+                          className="mt-2 max-w-full whitespace-normal break-all text-center text-[12px] leading-4 text-[#222]"
+                          style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9)' }}
+                        >
                           {launchingItemId === item.id ? '启动中...' : item.name}
                         </span>
                       ) : null}
