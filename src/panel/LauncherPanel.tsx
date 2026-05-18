@@ -744,8 +744,7 @@ function LauncherPanel() {
                   categoryFontSize,
                 )
                 const categoryFontSizeValue = pianoMotion.fontSize
-                const categoryTitleColor =
-                  isActive || isRenaming ? categoryFontColor : index === hoveredCategoryIndex ? '#333' : categoryFontColor
+                const categoryTitleColor = categoryFontColor
                 const categoryTitleWeight = isActive || isRenaming || index === hoveredCategoryIndex ? 600 : 400
                 const rowClass = [
                   'relative flex w-full items-center justify-between rounded-[12px] px-3 text-left transition-[height] duration-150 ease',
