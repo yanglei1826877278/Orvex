@@ -296,7 +296,7 @@ function SettingsWindow() {
           {activeTab === 'general' ? (
             <SettingsGroup>
               <SettingRow label="开机自启">
-                <SettingField hint="暂未接入系统开机启动，当前仅保存这个偏好。">
+                <SettingField hint="开启后，Orvex 会在系统登录后自动启动。">
                   <Toggle
                     checked={draft.launchAtStartup}
                     onChange={(checked) => updateDraft({ launchAtStartup: checked })}

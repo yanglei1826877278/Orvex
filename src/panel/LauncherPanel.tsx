@@ -34,6 +34,13 @@ type SidebarMenuState = {
   category: PanelCategory | null
 }
 
+type ItemMenuState = {
+  open: boolean
+  x: number
+  y: number
+  item: LauncherItem | null
+}
+
 type HoverCardState = {
   item: LauncherItem | null
   x: number
@@ -50,6 +57,8 @@ function LauncherPanel() {
     addLauncherItemFromPath,
     editCategory,
     removeCategory,
+    removeLauncherItem,
+    openItemLocation,
   } = useLauncherState()
   const [selectedCategoryId, setSelectedCategoryId] = useState('all')
   const [query, setQuery] = useState('')
@@ -68,6 +77,12 @@ function LauncherPanel() {
     x: 0,
     y: 0,
     category: null,
+  })
+  const [itemMenu, setItemMenu] = useState<ItemMenuState>({
+    open: false,
+    x: 0,
+    y: 0,
+    item: null,
   })
   const [hoverCard, setHoverCard] = useState<HoverCardState>({
     item: null,
@@ -200,19 +215,20 @@ function LauncherPanel() {
   }, [renamingCategoryId])
 
   useEffect(() => {
-    if (!sidebarMenu.open) {
+    if (!sidebarMenu.open && !itemMenu.open) {
       return
     }
 
     const close = () => {
       setSidebarMenu({ open: false, x: 0, y: 0, category: null })
+      setItemMenu({ open: false, x: 0, y: 0, item: null })
     }
     window.addEventListener('click', close)
 
     return () => {
       window.removeEventListener('click', close)
     }
-  }, [sidebarMenu.open])
+  }, [itemMenu.open, sidebarMenu.open])
 
   useEffect(() => {
     const categoryList = categoryListRef.current
@@ -540,11 +556,27 @@ function LauncherPanel() {
 
     event.preventDefault()
     event.stopPropagation()
+    setItemMenu({ open: false, x: 0, y: 0, item: null })
     setSidebarMenu({
       open: true,
       x: event.clientX,
       y: event.clientY,
       category,
+    })
+  }
+
+  function handleItemContextMenu(
+    event: ReactMouseEvent<HTMLButtonElement>,
+    item: LauncherItem,
+  ) {
+    event.preventDefault()
+    event.stopPropagation()
+    setSidebarMenu({ open: false, x: 0, y: 0, category: null })
+    setItemMenu({
+      open: true,
+      x: event.clientX,
+      y: event.clientY,
+      item,
     })
   }
 
@@ -646,6 +678,28 @@ function LauncherPanel() {
 
     if (selectedCategoryId === category.id) {
       setSelectedCategoryId('all')
+    }
+  }
+
+  async function handleOpenLocation(item: LauncherItem) {
+    try {
+      const result = await openItemLocation(item.id)
+      setFlash(`${item.name}${result.detail}`)
+    } catch (caughtError) {
+      setFlash(
+        caughtError instanceof Error
+          ? `打开位置失败：${caughtError.message}`
+          : '打开位置失败',
+      )
+    }
+  }
+
+  async function handleRemoveItem(item: LauncherItem) {
+    try {
+      await removeLauncherItem(item.id)
+      setFlash(`${item.name} 已从列表移除`)
+    } catch (caughtError) {
+      setFlash(caughtError instanceof Error ? caughtError.message : '移除启动项失败')
     }
   }
 
@@ -950,6 +1004,7 @@ function LauncherPanel() {
                             : current,
                         )
                       }}
+                      onContextMenu={(event) => handleItemContextMenu(event, item)}
                       onClick={() => void handleLaunch(item)}
                     >
                       <PanelIcon item={item} storageDirectory={storageDirectory} />
@@ -1023,6 +1078,31 @@ function LauncherPanel() {
             ) : (
               <ContextMenuItem label="新建分类" onClick={openCreateCategoryInput} />
             )}
+          </ContextMenu>
+        ) : null}
+
+        {itemMenu.open && itemMenu.item ? (
+          <ContextMenu x={itemMenu.x} y={itemMenu.y}>
+            <ContextMenuItem label="管理员方式运行" disabled />
+            <ContextMenuItem
+              label="打开文件所在位置"
+              onClick={() => {
+                void handleOpenLocation(itemMenu.item!)
+                setItemMenu({ open: false, x: 0, y: 0, item: null })
+              }}
+            />
+            <ContextMenuItem label="添加URL项目" disabled />
+            <ContextMenuItem label="添加系统项目" disabled />
+            <ContextMenuItem label="资源管理器菜单" disabled />
+            <ContextMenuItem label="属性" disabled />
+            <ContextMenuItem
+              label="从列表移除"
+              danger
+              onClick={() => {
+                void handleRemoveItem(itemMenu.item!)
+                setItemMenu({ open: false, x: 0, y: 0, item: null })
+              }}
+            />
           </ContextMenu>
         ) : null}
       </div>
@@ -1215,18 +1295,22 @@ function ContextMenu({
 function ContextMenuItem({
   label,
   danger = false,
+  disabled = false,
   onClick,
 }: {
   label: string
   danger?: boolean
+  disabled?: boolean
   onClick?: () => void
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={[
-        'flex h-8 w-full items-center px-4 text-left text-[13px] transition-colors duration-100 hover:bg-[var(--panel-menu-hover-bg)]',
+        'flex h-8 w-full items-center px-4 text-left text-[13px] transition-colors duration-100',
+        disabled ? 'cursor-not-allowed opacity-45' : 'hover:bg-[var(--panel-menu-hover-bg)]',
         danger ? 'text-[var(--panel-menu-danger)]' : 'text-[var(--panel-menu-text)]',
       ].join(' ')}
     >

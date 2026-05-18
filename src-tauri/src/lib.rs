@@ -6,6 +6,11 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutEvent;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
+#[cfg(windows)]
+use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_SET_VALUE};
+#[cfg(windows)]
+use winreg::RegKey;
+
 mod models;
 mod storage;
 
@@ -258,6 +263,67 @@ fn apply_global_shortcuts<R: tauri::Runtime>(
   Ok(())
 }
 
+fn apply_launch_at_startup<R: tauri::Runtime>(
+  app: &tauri::AppHandle<R>,
+  enabled: bool,
+) -> Result<(), String> {
+  #[cfg(windows)]
+  {
+    apply_windows_launch_at_startup(app, enabled)
+  }
+
+  #[cfg(not(windows))]
+  {
+    let _ = (app, enabled);
+    Ok(())
+  }
+}
+
+#[cfg(windows)]
+fn apply_windows_launch_at_startup<R: tauri::Runtime>(
+  app: &tauri::AppHandle<R>,
+  enabled: bool,
+) -> Result<(), String> {
+  const RUN_KEY: &str = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
+  let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+  let key = hkcu
+    .open_subkey_with_flags(RUN_KEY, KEY_READ | KEY_SET_VALUE)
+    .map_err(|error| error.to_string())?;
+  let app_name = &app.package_info().name;
+
+  if enabled {
+    let exe_path = std::env::current_exe().map_err(|error| error.to_string())?;
+    let exe = exe_path.to_string_lossy().replace('"', "\\\"");
+    let command = format!("\"{exe}\"");
+    key.set_value(app_name, &command)
+      .map_err(|error| error.to_string())?;
+  } else {
+    match key.delete_value(app_name) {
+      Ok(()) => {}
+      Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+      Err(error) => return Err(error.to_string()),
+    }
+  }
+
+  Ok(())
+}
+
+#[cfg(windows)]
+fn query_windows_launch_at_startup<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<bool, String> {
+  const RUN_KEY: &str = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
+  let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+  let key = hkcu
+    .open_subkey_with_flags(RUN_KEY, KEY_READ)
+    .map_err(|error| error.to_string())?;
+  let app_name = &app.package_info().name;
+  Ok(key.get_value::<String, _>(app_name).is_ok())
+}
+
+#[cfg(not(windows))]
+fn query_windows_launch_at_startup<R: tauri::Runtime>(_app: &tauri::AppHandle<R>) -> Result<bool, String> {
+  Ok(false)
+}
+
 #[tauri::command]
 fn update_settings_state(
   app: tauri::AppHandle,
@@ -265,6 +331,7 @@ fn update_settings_state(
   storage: tauri::State<'_, storage::StorageState>,
 ) -> Result<SettingsState, String> {
   let next_settings = storage.update_settings(payload)?;
+  apply_launch_at_startup(&app, next_settings.launch_at_startup)?;
   apply_global_shortcuts(&app, &next_settings)?;
   Ok(next_settings)
 }
@@ -375,7 +442,11 @@ pub fn run() {
           .build(),
       )?;
       let storage = storage::StorageState::new(&app.handle())?;
-      let initial_settings = storage.load_settings().unwrap_or_else(|_| SettingsState::seed());
+      let mut initial_settings = storage.load_settings().unwrap_or_else(|_| SettingsState::seed());
+      if let Ok(enabled) = query_windows_launch_at_startup(&app.handle()) {
+        initial_settings.launch_at_startup = enabled;
+      }
+      apply_launch_at_startup(&app.handle(), initial_settings.launch_at_startup)?;
       let show_panel_on_startup = initial_settings.show_panel_on_startup;
       app.manage(storage);
       create_launcher_panel(&app.handle())?;
