@@ -11,6 +11,7 @@ import {
   loadLauncherState,
   loadSettingsState,
   openLauncherItemLocation,
+  reorderLauncherItems,
   updateCategory,
   updateLauncherItem,
   updateSettingsState,
@@ -40,6 +41,7 @@ type LauncherStateResult = {
   editLauncherItem: (payload: UpdateLauncherItemPayload) => Promise<void>
   removeCategory: (categoryId: string) => Promise<void>
   removeLauncherItem: (itemId: string) => Promise<void>
+  reorderItems: (itemIds: string[]) => Promise<void>
   launchItem: (itemId: string) => Promise<LaunchResult>
   openItemLocation: (itemId: string) => Promise<LaunchResult>
   updateSettings: (payload: UpdateSettingsPayload) => Promise<SettingsState>
@@ -175,6 +177,11 @@ export function useLauncherState(): LauncherStateResult {
     setLauncherState(nextState)
   }
 
+  async function reorderItems(itemIds: string[]) {
+    const nextState = await reorderLauncherItems({ itemIds })
+    setLauncherState(nextState)
+  }
+
   async function launchItem(itemId: string) {
     const result = await launchLauncherItem(itemId)
     await refreshState()
@@ -204,6 +211,7 @@ export function useLauncherState(): LauncherStateResult {
     editLauncherItem,
     removeCategory,
     removeLauncherItem,
+    reorderItems,
     launchItem,
     openItemLocation,
     updateSettings,

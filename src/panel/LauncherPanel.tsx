@@ -54,6 +54,11 @@ type HoverCardState = {
   y: number
 }
 
+type DragSortState = {
+  active: boolean
+  itemId: string
+}
+
 type SystemProjectDialogState = {
   open: boolean
   categoryId: string
@@ -238,11 +243,11 @@ function LauncherPanel() {
     removeCategory,
     removeLauncherItem,
     openItemLocation,
+    reorderItems,
     updateSettings,
   } = useLauncherState()
   const [selectedCategoryId, setSelectedCategoryId] = useState('all')
   const [query, setQuery] = useState('')
-  const [flash, setFlash] = useState('')
   const [launchingItemId, setLaunchingItemId] = useState('')
   const [dragOverlayVisible, setDragOverlayVisible] = useState(false)
   const [dragOverIcons, setDragOverIcons] = useState(false)
@@ -279,6 +284,11 @@ function LauncherPanel() {
     categoryId: '',
     categoryTitle: '',
   })
+  const [dragSortState, setDragSortState] = useState<DragSortState>({
+    active: false,
+    itemId: '',
+  })
+  const [dropTargetItemId, setDropTargetItemId] = useState('')
   const [urlProjectDialog, setUrlProjectDialog] = useState<UrlProjectDialogState>({
     open: false,
     categoryId: '',
@@ -288,6 +298,7 @@ function LauncherPanel() {
   const [urlProjectAddress, setUrlProjectAddress] = useState('')
   const [hoveredCategoryIndex, setHoveredCategoryIndex] = useState<number | null>(null)
   const [previewSettings, setPreviewSettings] = useState<SettingsState | null>(null)
+  const dragSortItemIdRef = useRef('')
   const categoryListRef = useRef<HTMLDivElement | null>(null)
   const categoryRailRef = useRef<HTMLElement | null>(null)
   const iconGridRef = useRef<HTMLDivElement | null>(null)
@@ -303,6 +314,7 @@ function LauncherPanel() {
 
   const theme = effectiveSettings?.theme ?? 'light'
   const showIconTitles = effectiveSettings?.showIconTitles ?? true
+  const showCategoryCounts = effectiveSettings?.showCategoryCounts ?? true
   const rootBackgroundOpacity = (effectiveSettings?.backgroundOpacity ?? 88) / 100
   const sidebarOpacity = (effectiveSettings?.sidebarOpacity ?? 92) / 100
   const contentOpacity = (effectiveSettings?.contentOpacity ?? 92) / 100
@@ -340,8 +352,6 @@ function LauncherPanel() {
         '--panel-search-bg': panelAppearance.searchSurface,
         '--panel-search-border': panelAppearance.searchBorder,
         '--panel-search-placeholder': panelAppearance.searchPlaceholder,
-        '--panel-flash-bg': panelAppearance.flashBg,
-        '--panel-flash-border': panelAppearance.flashBorder,
         '--panel-grid-bg': panelAppearance.gridSurface,
         '--panel-grid-border': panelAppearance.gridBorder,
         '--panel-grid-hover-bg': panelAppearance.gridHoverBg,
@@ -483,13 +493,44 @@ function LauncherPanel() {
   }, [])
 
   useEffect(() => {
-    if (!flash) {
+    if (!dragSortState.active) {
       return
     }
 
-    const timer = window.setTimeout(() => setFlash(''), 2200)
-    return () => window.clearTimeout(timer)
-  }, [flash])
+    const handleMouseMove = (event: MouseEvent) => {
+      const item = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>(
+        '[data-launcher-item-id]',
+      )
+      const nextTargetId = item?.dataset.launcherItemId ?? ''
+
+      if (!nextTargetId || nextTargetId === dragSortItemIdRef.current) {
+        return
+      }
+
+      setDropTargetItemId(nextTargetId)
+    }
+
+    const handleMouseUp = () => {
+      const draggingId = dragSortItemIdRef.current
+      const targetId = dropTargetItemId
+
+      if (draggingId && targetId && draggingId !== targetId) {
+        void handleReorderDrop(targetId)
+      } else {
+        setDragSortState({ active: false, itemId: '' })
+        dragSortItemIdRef.current = ''
+        setDropTargetItemId('')
+      }
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [dragSortState.active, dropTargetItemId])
 
   const categories = useMemo<PanelCategory[]>(() => {
     const base = (launcherState?.categories ?? []).filter((category) => category.id !== 'all')
@@ -557,6 +598,15 @@ function LauncherPanel() {
 
     return filtered
   }, [deferredQuery, effectiveCategoryId, launcherState, settingsState?.sortMode, shouldShowSearch])
+
+  const isCustomSortMode = (settingsState?.sortMode ?? 'custom') === 'custom'
+  const renderedItems = useMemo(() => {
+    if (!dragSortState.active || !dragSortState.itemId || !dropTargetItemId) {
+      return visibleItems
+    }
+
+    return buildPreviewItems(visibleItems, dragSortState.itemId, dropTargetItemId)
+  }, [dragSortState.active, dragSortState.itemId, dropTargetItemId, visibleItems])
 
   useEffect(() => {
     let isMounted = true
@@ -631,7 +681,7 @@ function LauncherPanel() {
           })
 
           if (supportedPaths.length === 0) {
-            setFlash('只支持拖入 exe、lnk、bat、cmd 或文件夹')
+            console.warn('只支持拖入 exe、lnk、bat、cmd 或文件夹')
             return
           }
 
@@ -647,11 +697,7 @@ function LauncherPanel() {
                 path,
               })
             } catch (caughtError) {
-              setFlash(
-                caughtError instanceof Error
-                  ? `拖入失败：${caughtError.message}`
-                  : '拖入创建启动项失败',
-              )
+              console.error('拖入创建启动项失败', caughtError)
               return
             }
           }
@@ -677,7 +723,7 @@ function LauncherPanel() {
   async function handleLaunch(item: LauncherItem) {
     setLaunchingItemId(item.id)
     try {
-      const result = await launchItem(item.id)
+      await launchItem(item.id)
       let shouldClosePanel = settingsState?.closePanelAfterLaunch ?? false
 
       try {
@@ -692,14 +738,11 @@ function LauncherPanel() {
           return
         } catch (hideError) {
           console.warn('Failed to hide launcher panel after launch', hideError)
-          setFlash(`${item.name}${result.detail}，但自动关闭面板失败`)
           return
         }
       }
-
-      setFlash(`${item.name}${result.detail}`)
     } catch (caughtError) {
-      setFlash(caughtError instanceof Error ? `启动失败：${caughtError.message}` : '启动失败')
+      console.error('启动失败', caughtError)
     } finally {
       setLaunchingItemId('')
     }
@@ -907,11 +950,7 @@ function LauncherPanel() {
     try {
       await openItemLocation(item.id)
     } catch (caughtError) {
-      setFlash(
-        caughtError instanceof Error
-          ? `打开位置失败：${caughtError.message}`
-          : '打开位置失败',
-      )
+      console.error('打开位置失败', caughtError)
     }
   }
 
@@ -920,11 +959,7 @@ function LauncherPanel() {
     try {
       await launchLauncherItemAsAdmin(item.id)
     } catch (caughtError) {
-      setFlash(
-        caughtError instanceof Error
-          ? `管理员启动失败：${caughtError.message}`
-          : '管理员启动失败',
-      )
+      console.error('管理员启动失败', caughtError)
     } finally {
       setLaunchingItemId('')
     }
@@ -942,7 +977,7 @@ function LauncherPanel() {
     )
 
     if (duplicate) {
-      setFlash(`${option.name} 已经在 ${systemProjectDialog.categoryTitle} 中了`)
+      console.warn(`${option.name} 已经在 ${systemProjectDialog.categoryTitle} 中了`)
       return
     }
 
@@ -962,7 +997,7 @@ function LauncherPanel() {
       })
       setSystemProjectDialog({ open: false, categoryId: '', categoryTitle: '' })
     } catch (caughtError) {
-      setFlash(caughtError instanceof Error ? caughtError.message : '添加系统项目失败')
+      console.error('添加系统项目失败', caughtError)
     }
   }
 
@@ -973,7 +1008,7 @@ function LauncherPanel() {
         : categories.find((category) => !category.virtual)
 
     if (!targetCategory) {
-      setFlash('请先创建一个可用分类')
+      console.warn('请先创建一个可用分类')
       return null
     }
 
@@ -997,6 +1032,7 @@ function LauncherPanel() {
     const resolvedCategory = resolveEditableCategory()
     if (!resolvedCategory) return
 
+    setItemMenu({ open: false, x: 0, y: 0, item: null })
     setPanelMenu({ open: false, x: 0, y: 0 })
     setUrlProjectName('')
     setUrlProjectAddress('')
@@ -1012,7 +1048,7 @@ function LauncherPanel() {
     const address = urlProjectAddress.trim()
 
     if (!urlProjectDialog.categoryId || !name || !address) {
-      setFlash('请填写项目名称和 URL 地址')
+      console.warn('请填写项目名称和 URL 地址')
       return
     }
 
@@ -1034,7 +1070,7 @@ function LauncherPanel() {
       setUrlProjectName('')
       setUrlProjectAddress('')
     } catch (caughtError) {
-      setFlash(caughtError instanceof Error ? caughtError.message : '添加 URL 项目失败')
+      console.error('添加 URL 项目失败', caughtError)
     }
   }
 
@@ -1049,16 +1085,47 @@ function LauncherPanel() {
         showIconTitles: !showIconTitles,
       })
     } catch (caughtError) {
-      setFlash(caughtError instanceof Error ? caughtError.message : '切换图标标题失败')
+      console.error('切换图标标题失败', caughtError)
     }
   }
 
   async function handleRemoveItem(item: LauncherItem) {
     try {
       await removeLauncherItem(item.id)
-      setFlash(`${item.name} 已从列表移除`)
     } catch (caughtError) {
-      setFlash(caughtError instanceof Error ? caughtError.message : '移除启动项失败')
+      console.error('移除启动项失败', caughtError)
+    }
+  }
+
+  async function handleReorderDrop(targetItemId: string) {
+    if (!dragSortItemIdRef.current || dragSortItemIdRef.current === targetItemId || !launcherState) {
+      setDragSortState({ active: false, itemId: '' })
+      dragSortItemIdRef.current = ''
+      setDropTargetItemId('')
+      return
+    }
+
+    const reorderedIds = buildReorderedItemIds(
+      launcherState.items,
+      dragSortItemIdRef.current,
+      targetItemId,
+    )
+
+    if (!reorderedIds) {
+      setDragSortState({ active: false, itemId: '' })
+      dragSortItemIdRef.current = ''
+      setDropTargetItemId('')
+      return
+    }
+
+    try {
+      await reorderItems(reorderedIds)
+    } catch (caughtError) {
+      console.error('调整启动项顺序失败', caughtError)
+    } finally {
+      setDragSortState({ active: false, itemId: '' })
+      dragSortItemIdRef.current = ''
+      setDropTargetItemId('')
     }
   }
 
@@ -1102,7 +1169,7 @@ function LauncherPanel() {
           theme={theme}
           onClick={() => {
             void openSettingsWindowCommand().catch((error) => {
-              setFlash(error instanceof Error ? error.message : '打开设置窗口失败')
+              console.error('打开设置窗口失败', error)
             })
           }}
         />
@@ -1159,6 +1226,7 @@ function LauncherPanel() {
                 const categoryFontSizeValue = pianoMotion.fontSize
                 const categoryTitleColor = categoryFontColor
                 const categoryTitleWeight = isActive || isRenaming || index === hoveredCategoryIndex ? 600 : 400
+                const shouldShowCount = showCategoryCounts && category.count > 0
                 const rowClass = [
                   'relative flex w-full items-center justify-between rounded-[12px] px-3 text-left transition-[height] duration-150 ease',
                 ].join(' ')
@@ -1193,15 +1261,17 @@ function LauncherPanel() {
                           transition: 'font-size 150ms ease',
                         }}
                       />
-                      <span
-                        className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                        style={{
-                          backgroundColor: categoryFontColor,
-                          color: '#fff',
-                        }}
-                      >
-                        {category.count}
-                      </span>
+                      {shouldShowCount ? (
+                        <span
+                          className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                          style={{
+                            backgroundColor: categoryFontColor,
+                            color: '#fff',
+                          }}
+                        >
+                          {category.count}
+                        </span>
+                      ) : null}
                     </div>
                   )
                 }
@@ -1235,15 +1305,17 @@ function LauncherPanel() {
                     >
                       {category.title}
                     </span>
-                    <span
-                      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                      style={{
-                        backgroundColor: isActive ? categoryFontColor : '#eee',
-                        color: isActive ? '#fff' : '#999',
-                      }}
-                    >
-                      {category.count}
-                    </span>
+                    {shouldShowCount ? (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                        style={{
+                          backgroundColor: isActive ? categoryFontColor : '#eee',
+                          color: isActive ? '#fff' : '#999',
+                        }}
+                      >
+                        {category.count}
+                      </span>
+                    ) : null}
                   </button>
                 )
               })}
@@ -1301,19 +1373,6 @@ function LauncherPanel() {
               </div>
             ) : null}
 
-            {flash ? (
-              <div
-                className="mt-3 rounded-[14px] border px-3 py-2 text-[12px] text-[var(--panel-text-strong)]"
-                style={{
-                  background: panelAppearance.flashBg,
-                  borderColor: panelAppearance.flashBorder,
-                  backdropFilter: frostedGlassEnabled ? `blur(${frostedGlassStrength}px)` : 'none',
-                }}
-              >
-                {flash}
-              </div>
-            ) : null}
-
             <div className="relative mt-4 min-h-0 flex-1">
               <div
                 ref={iconGridRef}
@@ -1326,18 +1385,32 @@ function LauncherPanel() {
                 }}
               >
                 <div className="grid min-h-full auto-rows-max content-start grid-cols-[repeat(auto-fill,minmax(80px,1fr))] items-start gap-3 rounded-[16px] border border-transparent p-2 transition">
-                  {visibleItems.map((item) => (
+                  {renderedItems.map((item) => (
                     <button
                       key={item.id}
                       type="button"
+                      data-launcher-item-id={item.id}
                       className={[
                         'group flex min-h-[96px] flex-col items-center justify-start rounded-[14px] border border-transparent px-2 py-2 transition',
                         'bg-[var(--panel-item-bg)] hover:-translate-y-0.5 hover:bg-[var(--panel-item-hover-bg)]',
+                        dropTargetItemId === item.id ? 'border-[#111111] border-dashed' : '',
+                        dragSortState.active && dragSortState.itemId === item.id ? 'opacity-45' : '',
                       ].join(' ')}
                       style={{
                         backdropFilter: frostedGlassEnabled
                           ? `blur(${Math.max(0, frostedGlassStrength - 2)}px)`
                           : 'none',
+                      }}
+                      onMouseDown={(event) => {
+                        if (!isCustomSortMode) {
+                          return
+                        }
+                        if (event.button !== 0) {
+                          return
+                        }
+                        dragSortItemIdRef.current = item.id
+                        setDragSortState({ active: true, itemId: item.id })
+                        setDropTargetItemId(item.id)
                       }}
                       onMouseEnter={(event) => {
                         const rect = event.currentTarget.getBoundingClientRect()
@@ -1460,7 +1533,7 @@ function LauncherPanel() {
                 setItemMenu({ open: false, x: 0, y: 0, item: null })
               }}
             />
-            <ContextMenuItem label="添加URL项目" disabled />
+            <ContextMenuItem label="添加URL项目" onClick={openUrlProjectDialog} />
             <ContextMenuItem
               label="添加系统项目"
               onClick={openSystemProjectDialog}
@@ -1993,6 +2066,37 @@ function getCategoryPianoMotion(
   }
 
   return { fontSize: Math.max(baseFontSize, 17), height: 48 }
+}
+
+function buildPreviewItems(
+  items: LauncherItem[],
+  draggingItemId: string,
+  targetItemId: string,
+) {
+  const sourceIndex = items.findIndex((item) => item.id === draggingItemId)
+  const targetIndex = items.findIndex((item) => item.id === targetItemId)
+
+  if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
+    return items
+  }
+
+  const nextItems = [...items]
+  const [draggingItem] = nextItems.splice(sourceIndex, 1)
+  nextItems.splice(targetIndex, 0, draggingItem)
+  return nextItems
+}
+
+function buildReorderedItemIds(
+  items: LauncherItem[],
+  draggingItemId: string,
+  targetItemId: string,
+) {
+  const previewItems = buildPreviewItems(items, draggingItemId, targetItemId)
+  if (previewItems === items) {
+    return null
+  }
+
+  return previewItems.map((item) => item.id)
 }
 
 type PanelAppearanceOptions = {

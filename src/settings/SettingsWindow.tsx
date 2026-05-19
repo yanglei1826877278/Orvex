@@ -68,6 +68,7 @@ function SettingsWindow() {
       draft.contentOpacity !== settingsState.contentOpacity ||
       draft.backgroundOpacity !== settingsState.backgroundOpacity ||
       draft.transparentDragonHeader !== settingsState.transparentDragonHeader ||
+      draft.showCategoryCounts !== settingsState.showCategoryCounts ||
       draft.showIconTitles !== settingsState.showIconTitles ||
       draft.appearance.category_font_size !== settingsState.appearance.category_font_size ||
       draft.appearance.category_font_color !== settingsState.appearance.category_font_color ||
@@ -438,6 +439,12 @@ function SettingsWindow() {
                 <Toggle
                   checked={draft.showIconTitles}
                   onChange={(checked) => updateDraft({ showIconTitles: checked })}
+                />
+              </SettingRow>
+              <SettingRow label="分类显示数量">
+                <Toggle
+                  checked={draft.showCategoryCounts}
+                  onChange={(checked) => updateDraft({ showCategoryCounts: checked })}
                 />
               </SettingRow>
               <SettingRow label="文字样式">

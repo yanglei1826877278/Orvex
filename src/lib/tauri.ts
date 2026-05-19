@@ -6,6 +6,7 @@ import type {
   CreateLauncherItemPayload,
   LaunchResult,
   LauncherState,
+  ReorderLauncherItemsPayload,
   RestoreBackupResult,
   SettingsState,
   UpdateSettingsPayload,
@@ -77,6 +78,10 @@ export async function deleteCategory(categoryId: string) {
 
 export async function deleteLauncherItem(itemId: string) {
   return invoke<LauncherState>('delete_launcher_item', { itemId })
+}
+
+export async function reorderLauncherItems(payload: ReorderLauncherItemsPayload) {
+  return invoke<LauncherState>('reorder_launcher_items', { payload })
 }
 
 export async function launchLauncherItem(itemId: string) {

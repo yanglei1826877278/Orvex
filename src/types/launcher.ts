@@ -11,6 +11,7 @@ export type LauncherItemKind = 'app' | 'folder' | 'workspace' | 'url'
 
 export type LauncherItem = {
   id: string
+  order: number
   categoryId: string
   name: string
   alias: string
@@ -66,6 +67,7 @@ export type SettingsState = {
   backgroundOpacity: number
   transparentDragonHeader: boolean
   appearance: AppearanceSettings
+  showCategoryCounts: boolean
   showIconTitles: boolean
   panelHotkey: HotkeySetting
   todoHotkey: HotkeySetting
@@ -111,6 +113,11 @@ export type UpdateCategoryPayload = CreateCategoryPayload & {
 
 export type UpdateLauncherItemPayload = CreateLauncherItemPayload & {
   id: string
+  order: number
+}
+
+export type ReorderLauncherItemsPayload = {
+  itemIds: string[]
 }
 
 export type UpdateSettingsPayload = {
@@ -129,6 +136,7 @@ export type UpdateSettingsPayload = {
   backgroundOpacity: number
   transparentDragonHeader: boolean
   appearance: AppearanceSettings
+  showCategoryCounts: boolean
   showIconTitles: boolean
   panelHotkey: HotkeySetting
   todoHotkey: HotkeySetting

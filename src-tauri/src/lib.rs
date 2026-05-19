@@ -480,6 +480,7 @@ pub fn run() {
       storage::restore_backup_archive,
       storage::delete_category,
       storage::delete_launcher_item,
+      storage::reorder_launcher_items,
       storage::launch_item,
       storage::launch_item_as_admin,
       storage::open_item_location

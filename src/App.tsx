@@ -1505,6 +1505,7 @@ function SearchIcon() {
 function mapItemToUpdateDraft(item: LauncherItem): UpdateLauncherItemPayload {
   return {
     id: item.id,
+    order: item.order,
     categoryId: item.categoryId,
     name: item.name,
     alias: item.alias,

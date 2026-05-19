@@ -20,6 +20,7 @@ use crate::models::{
   LauncherItemKind,
   LauncherState,
   LaunchResult,
+  ReorderLauncherItemsPayload,
   RestoreBackupResult,
   SettingsState,
   UpdateSettingsPayload,
@@ -203,6 +204,15 @@ impl StorageState {
     Ok(state.clone())
   }
 
+  pub fn reorder_items(&self, payload: ReorderLauncherItemsPayload) -> Result<LauncherState, String> {
+    let mut state = self.state.lock().map_err(|error| error.to_string())?;
+    if !state.reorder_items(&payload.item_ids) {
+      return Err("启动项顺序无效。".into());
+    }
+    persist_json(&self.launcher_file, &*state).map_err(|error| error.to_string())?;
+    Ok(state.clone())
+  }
+
   pub fn launch_item(&self, item_id: String) -> Result<LaunchResult, String> {
     let mut state = self.state.lock().map_err(|error| error.to_string())?;
     let item = state
@@ -305,6 +315,7 @@ impl StorageState {
     settings.appearance.item_font_size = payload.appearance.item_font_size.clamp(11, 16);
     settings.appearance.item_font_color =
       normalize_hex_color(&payload.appearance.item_font_color, "#333333");
+    settings.show_category_counts = payload.show_category_counts;
     settings.show_icon_titles = payload.show_icon_titles;
     settings.panel_hotkey = payload.panel_hotkey;
     settings.todo_hotkey = payload.todo_hotkey;
@@ -579,6 +590,14 @@ pub fn delete_launcher_item(
   storage: tauri::State<'_, StorageState>,
 ) -> Result<LauncherState, String> {
   storage.delete_item(item_id)
+}
+
+#[tauri::command]
+pub fn reorder_launcher_items(
+  payload: ReorderLauncherItemsPayload,
+  storage: tauri::State<'_, StorageState>,
+) -> Result<LauncherState, String> {
+  storage.reorder_items(payload)
 }
 
 #[tauri::command]
