@@ -64,6 +64,10 @@ pub struct SettingsState {
   pub sidebar_opacity: u8,
   pub content_opacity: u8,
   pub background_opacity: u8,
+  #[serde(default = "default_item_card_color")]
+  pub item_card_color: String,
+  #[serde(default = "default_item_card_opacity")]
+  pub item_card_opacity: u8,
   #[serde(default = "default_icon_shell_color")]
   pub icon_shell_color: String,
   #[serde(default = "default_icon_shell_opacity")]
@@ -198,6 +202,8 @@ pub struct UpdateSettingsPayload {
   pub sidebar_opacity: u8,
   pub content_opacity: u8,
   pub background_opacity: u8,
+  pub item_card_color: String,
+  pub item_card_opacity: u8,
   pub icon_shell_color: String,
   pub icon_shell_opacity: u8,
   pub transparent_dragon_header: bool,
@@ -481,6 +487,8 @@ impl SettingsState {
       sidebar_opacity: 92,
       content_opacity: 92,
       background_opacity: 88,
+      item_card_color: default_item_card_color(),
+      item_card_opacity: default_item_card_opacity(),
       icon_shell_color: default_icon_shell_color(),
       icon_shell_opacity: default_icon_shell_opacity(),
       transparent_dragon_header: false,
@@ -552,6 +560,14 @@ impl Default for UpdateSource {
 
 fn default_icon_shell_color() -> String {
   "#ffffff".into()
+}
+
+fn default_item_card_color() -> String {
+  "#ffffff".into()
+}
+
+fn default_item_card_opacity() -> u8 {
+  78
 }
 
 fn default_icon_shell_opacity() -> u8 {

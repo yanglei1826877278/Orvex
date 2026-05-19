@@ -67,6 +67,8 @@ function SettingsWindow() {
       draft.sidebarOpacity !== settingsState.sidebarOpacity ||
       draft.contentOpacity !== settingsState.contentOpacity ||
       draft.backgroundOpacity !== settingsState.backgroundOpacity ||
+      draft.itemCardColor !== settingsState.itemCardColor ||
+      draft.itemCardOpacity !== settingsState.itemCardOpacity ||
       draft.iconShellColor !== settingsState.iconShellColor ||
       draft.iconShellOpacity !== settingsState.iconShellOpacity ||
       draft.transparentDragonHeader !== settingsState.transparentDragonHeader ||
@@ -143,6 +145,8 @@ function SettingsWindow() {
         sidebarOpacity: clampNumber(draft.sidebarOpacity, 0, 100),
         contentOpacity: clampNumber(draft.contentOpacity, 0, 100),
         backgroundOpacity: clampNumber(draft.backgroundOpacity, 0, 100),
+        itemCardColor: normalizeHexColor(draft.itemCardColor),
+        itemCardOpacity: clampNumber(draft.itemCardOpacity, 0, 100),
         iconShellColor: normalizeHexColor(draft.iconShellColor),
         iconShellOpacity: clampNumber(draft.iconShellOpacity, 0, 100),
       })
@@ -431,7 +435,20 @@ function SettingsWindow() {
                   onChange={(value) => updateDraft({ backgroundOpacity: value })}
                 />
               </SettingRow>
-              <SettingRow label="图标小背景">
+              <SettingRow label="应用块背景">
+                <div className="flex flex-col items-end gap-2">
+                  <ColorOpacityControl
+                    color={draft.itemCardColor}
+                    opacity={draft.itemCardOpacity}
+                    onColorChange={(value) => updateDraft({ itemCardColor: value })}
+                    onOpacityChange={(value) => updateDraft({ itemCardOpacity: value })}
+                  />
+                  <p className="text-right text-[12px] text-[#999999]">
+                    控制每个应用块的颜色与透明度。
+                  </p>
+                </div>
+              </SettingRow>
+              <SettingRow label="图标外壳">
                 <div className="flex flex-col items-end gap-2">
                   <ColorOpacityControl
                     color={draft.iconShellColor}
@@ -440,7 +457,7 @@ function SettingsWindow() {
                     onOpacityChange={(value) => updateDraft({ iconShellOpacity: value })}
                   />
                   <p className="text-right text-[12px] text-[#999999]">
-                    独立控制图标外壳的颜色与透明度，不影响卡片本身。
+                    控制图标外层的小背景。
                   </p>
                 </div>
               </SettingRow>

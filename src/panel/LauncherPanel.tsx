@@ -321,6 +321,8 @@ function LauncherPanel() {
   const frostedGlassEnabled = effectiveSettings?.frostedGlass !== false
   const frostedGlassStrength = effectiveSettings?.frostedGlassStrength ?? 14
   const transparentDragonHeader = effectiveSettings?.transparentDragonHeader === true
+  const itemCardColor = effectiveSettings?.itemCardColor ?? '#ffffff'
+  const itemCardOpacity = effectiveSettings?.itemCardOpacity ?? 78
   const iconShellColor = effectiveSettings?.iconShellColor ?? '#ffffff'
   const iconShellOpacity = effectiveSettings?.iconShellOpacity ?? 94
   const appearanceSettings = effectiveSettings?.appearance
@@ -335,6 +337,8 @@ function LauncherPanel() {
         sidebarOpacity,
         contentOpacity,
         backgroundOpacity: rootBackgroundOpacity,
+        itemCardColor,
+        itemCardOpacity,
         iconShellColor,
         iconShellOpacity,
         hasImageBackground: Boolean(backgroundImageUrl),
@@ -342,6 +346,8 @@ function LauncherPanel() {
     [
       backgroundImageUrl,
       contentOpacity,
+      itemCardColor,
+      itemCardOpacity,
       iconShellColor,
       iconShellOpacity,
       rootBackgroundOpacity,
@@ -1662,35 +1668,45 @@ function ItemHoverCard({
   x: number
   y: number
 }) {
+  const cardWidth = 220
+  const cardHeight = 104
+  const viewportPadding = 12
+  const spaceBelow = window.innerHeight - y - viewportPadding
+  const spaceAbove = y - viewportPadding
+  const openUpward = spaceBelow < cardHeight && spaceAbove > spaceBelow
+  const left = Math.max(
+    viewportPadding,
+    Math.min(x - cardWidth / 2, window.innerWidth - cardWidth - viewportPadding),
+  )
+  const top = openUpward
+    ? Math.max(viewportPadding, y - cardHeight - 18)
+    : Math.max(viewportPadding, Math.min(y, window.innerHeight - cardHeight - viewportPadding))
+
   return (
     <div
-      className="pointer-events-none fixed z-[95] w-[280px] overflow-hidden rounded-[18px] border border-[#d8dee8] bg-[#fdfefe] text-left shadow-[0_22px_50px_rgba(15,23,42,0.18)]"
+      className="pointer-events-none fixed z-[95] w-[220px] overflow-hidden rounded-[14px] border border-[#d8dee8] bg-[#fdfefe] text-left shadow-[0_18px_36px_rgba(15,23,42,0.16)]"
       style={{
-        left: Math.max(12, Math.min(x - 140, window.innerWidth - 296)),
-        top: Math.max(12, Math.min(y, window.innerHeight - 154)),
+        left,
+        top,
       }}
     >
-      <div className="border-b border-[#e8edf4] bg-[#f6f8fb] px-4 py-2.5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#667085]">
+      <div className="border-b border-[#e8edf4] bg-[#f6f8fb] px-3 py-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#667085]">
           应用信息
         </p>
       </div>
-      <div className="px-4 py-3.5">
-        <div className="space-y-2">
-          <div>
-            <p className="text-[11px] font-medium text-[#98a2b3]">路径</p>
-            <p className="mt-1 break-all text-[12px] leading-5 text-[#344054]">{item.path}</p>
-          </div>
-          <div>
-            <p className="text-[11px] font-medium text-[#98a2b3]">名称</p>
-            <p className="mt-1 text-[20px] font-semibold leading-6 text-[#101828]">
-              {item.name}
-            </p>
-          </div>
-          <div className="flex items-center justify-between rounded-[12px] bg-[#f7f9fc] px-3 py-2">
-            <span className="text-[12px] font-medium text-[#667085]">使用次数</span>
-            <span className="text-[14px] font-semibold text-[#101828]">{item.launchCount}</span>
-          </div>
+      <div className="space-y-2 px-3 py-2.5">
+        <div>
+          <p className="text-[10px] font-medium text-[#98a2b3]">名称</p>
+          <p className="mt-0.5 truncate text-[13px] font-semibold leading-5 text-[#101828]">
+            {item.name}
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] font-medium text-[#98a2b3]">路径</p>
+          <p className="mt-0.5 truncate text-[11px] leading-4 text-[#344054]" title={item.path}>
+            {item.path}
+          </p>
         </div>
       </div>
     </div>
@@ -2116,6 +2132,8 @@ type PanelAppearanceOptions = {
   sidebarOpacity: number
   contentOpacity: number
   backgroundOpacity: number
+  itemCardColor: string
+  itemCardOpacity: number
   iconShellColor: string
   iconShellOpacity: number
   hasImageBackground: boolean
@@ -2167,6 +2185,8 @@ function buildPanelAppearance({
   sidebarOpacity,
   contentOpacity,
   backgroundOpacity,
+  itemCardColor,
+  itemCardOpacity,
   iconShellColor,
   iconShellOpacity,
   hasImageBackground,
@@ -2183,6 +2203,9 @@ function buildPanelAppearance({
   const deepSoft = [17, 26, 42] as const
   const light = [255, 255, 255] as const
   const lightSoft = [242, 246, 252] as const
+  const itemCardRgb = hexToRgb(itemCardColor) ?? light
+  const itemCardAlpha = clampOpacity(itemCardOpacity / 100, 0, 1)
+  const itemCardHoverAlpha = clampOpacity(itemCardAlpha + 0.08, 0, 1)
   const iconShellRgb = hexToRgb(iconShellColor) ?? light
   const baseLayer =
     backgroundAlpha === 0
@@ -2221,8 +2244,8 @@ function buildPanelAppearance({
       gridSurface: toRgba(deepSoft, softCardAlpha),
       gridBorder: toRgba(light, borderAlpha),
       gridHoverBg: toRgba(light, contentAlpha * 0.16),
-      itemBaseBg: toRgba(light, softCardAlpha * 0.56),
-      itemHoverBg: toRgba(light, hoverAlpha * 0.36),
+      itemBaseBg: toRgba(itemCardRgb, itemCardAlpha),
+      itemHoverBg: toRgba(itemCardRgb, itemCardHoverAlpha),
       overlayBg: toRgba(deep, 0.42),
       overlayCardBg: toRgba(deepSoft, clampOpacity(contentAlpha + 0.06, 0, 1)),
       overlayCardBorder: toRgba(light, 0.14),
@@ -2263,8 +2286,8 @@ function buildPanelAppearance({
     gridSurface: toRgba(light, softCardAlpha),
     gridBorder: 'rgba(148,163,184,0.18)',
     gridHoverBg: toRgba(lightSoft, contentAlpha * 0.72),
-    itemBaseBg: toRgba(light, softCardAlpha * 0.78),
-    itemHoverBg: toRgba(light, hoverAlpha),
+    itemBaseBg: toRgba(itemCardRgb, itemCardAlpha),
+    itemHoverBg: toRgba(itemCardRgb, itemCardHoverAlpha),
     overlayBg: 'rgba(255,255,255,0.42)',
     overlayCardBg: toRgba(light, clampOpacity(contentAlpha + 0.04, 0, 1)),
     overlayCardBorder: 'rgba(148,163,184,0.22)',
