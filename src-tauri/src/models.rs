@@ -64,6 +64,10 @@ pub struct SettingsState {
   pub sidebar_opacity: u8,
   pub content_opacity: u8,
   pub background_opacity: u8,
+  #[serde(default = "default_icon_shell_color")]
+  pub icon_shell_color: String,
+  #[serde(default = "default_icon_shell_opacity")]
+  pub icon_shell_opacity: u8,
   pub transparent_dragon_header: bool,
   pub appearance: AppearanceSettings,
   pub show_category_counts: bool,
@@ -194,6 +198,8 @@ pub struct UpdateSettingsPayload {
   pub sidebar_opacity: u8,
   pub content_opacity: u8,
   pub background_opacity: u8,
+  pub icon_shell_color: String,
+  pub icon_shell_opacity: u8,
   pub transparent_dragon_header: bool,
   pub appearance: AppearanceSettings,
   pub show_category_counts: bool,
@@ -475,6 +481,8 @@ impl SettingsState {
       sidebar_opacity: 92,
       content_opacity: 92,
       background_opacity: 88,
+      icon_shell_color: default_icon_shell_color(),
+      icon_shell_opacity: default_icon_shell_opacity(),
       transparent_dragon_header: false,
       appearance: AppearanceSettings {
         category_font_size: 14,
@@ -540,4 +548,12 @@ impl Default for UpdateSource {
   fn default() -> Self {
     Self::Gitee
   }
+}
+
+fn default_icon_shell_color() -> String {
+  "#ffffff".into()
+}
+
+fn default_icon_shell_opacity() -> u8 {
+  94
 }

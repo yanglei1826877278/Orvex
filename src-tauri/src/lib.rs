@@ -139,6 +139,9 @@ fn show_picker_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Re
 
 fn show_launcher_panel<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
   if let Some(panel) = app.get_webview_window("launcher-panel") {
+    if panel.is_minimized()? {
+      panel.unminimize()?;
+    }
     panel.show()?;
     panel.set_focus()?;
   }
@@ -148,9 +151,16 @@ fn show_launcher_panel<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::R
 
 fn toggle_launcher_panel<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
   if let Some(panel) = app.get_webview_window("launcher-panel") {
-    if panel.is_visible()? {
+    let is_visible = panel.is_visible()?;
+    let is_focused = panel.is_focused()?;
+    let is_minimized = panel.is_minimized()?;
+
+    if is_visible && is_focused && !is_minimized {
       panel.hide()?;
     } else {
+      if is_minimized {
+        panel.unminimize()?;
+      }
       panel.show()?;
       panel.set_focus()?;
     }

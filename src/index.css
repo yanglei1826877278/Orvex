@@ -172,7 +172,39 @@ body,
     background: rgba(71, 85, 105, 0.56);
     background-clip: padding-box;
   }
-}
+
+  .panel-scrollbar {
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(71, 85, 105, 0.72) rgba(255, 255, 255, 0.08);
+  }
+
+  .panel-scrollbar::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  .panel-scrollbar::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .panel-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(203, 213, 225, 0.48) 100%);
+    background-clip: padding-box;
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
+  }
+
+  .panel-scrollbar::-webkit-scrollbar-thumb:hover {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(148, 163, 184, 0.72) 100%);
+    background-clip: padding-box;
+  }
+  }
 
 @layer utilities {
   @keyframes fade-up {

@@ -321,6 +321,8 @@ function LauncherPanel() {
   const frostedGlassEnabled = effectiveSettings?.frostedGlass !== false
   const frostedGlassStrength = effectiveSettings?.frostedGlassStrength ?? 14
   const transparentDragonHeader = effectiveSettings?.transparentDragonHeader === true
+  const iconShellColor = effectiveSettings?.iconShellColor ?? '#ffffff'
+  const iconShellOpacity = effectiveSettings?.iconShellOpacity ?? 94
   const appearanceSettings = effectiveSettings?.appearance
   const categoryFontSize = appearanceSettings?.category_font_size ?? 14
   const categoryFontColor = appearanceSettings?.category_font_color ?? '#333333'
@@ -333,9 +335,19 @@ function LauncherPanel() {
         sidebarOpacity,
         contentOpacity,
         backgroundOpacity: rootBackgroundOpacity,
+        iconShellColor,
+        iconShellOpacity,
         hasImageBackground: Boolean(backgroundImageUrl),
       }),
-    [backgroundImageUrl, contentOpacity, rootBackgroundOpacity, sidebarOpacity, theme],
+    [
+      backgroundImageUrl,
+      contentOpacity,
+      iconShellColor,
+      iconShellOpacity,
+      rootBackgroundOpacity,
+      sidebarOpacity,
+      theme,
+    ],
   )
   const panelCssVars = useMemo(
     () =>
@@ -1355,7 +1367,7 @@ function LauncherPanel() {
             </div>
           </aside>
 
-          <main className="flex h-full flex-col px-5 py-4">
+          <main className="flex h-full min-h-0 flex-col overflow-hidden px-5 py-4">
             {shouldShowSearch ? (
               <div>
                 <input
@@ -1373,10 +1385,10 @@ function LauncherPanel() {
               </div>
             ) : null}
 
-            <div className="relative mt-4 min-h-0 flex-1">
+            <div className="relative mt-4 min-h-0 flex-1 overflow-hidden">
               <div
                 ref={iconGridRef}
-                className="h-full overflow-y-auto rounded-[16px] border pr-1 transition"
+                className="panel-scrollbar h-full overflow-y-scroll rounded-[16px] border pr-1 transition"
                 onContextMenu={handlePanelContextMenu}
                 style={{
                   background: dragOverIcons ? panelAppearance.gridHoverBg : panelAppearance.gridSurface,
@@ -2104,6 +2116,8 @@ type PanelAppearanceOptions = {
   sidebarOpacity: number
   contentOpacity: number
   backgroundOpacity: number
+  iconShellColor: string
+  iconShellOpacity: number
   hasImageBackground: boolean
 }
 
@@ -2153,12 +2167,15 @@ function buildPanelAppearance({
   sidebarOpacity,
   contentOpacity,
   backgroundOpacity,
+  iconShellColor,
+  iconShellOpacity,
   hasImageBackground,
 }: PanelAppearanceOptions): PanelAppearance {
   const isDark = theme === 'dark'
   const sidebarAlpha = clampOpacity(sidebarOpacity, 0, 1)
   const contentAlpha = clampOpacity(contentOpacity, 0, 1)
   const backgroundAlpha = clampOpacity(backgroundOpacity, 0, 1)
+  const iconShellAlpha = clampOpacity(iconShellOpacity / 100, 0, 1)
   const softCardAlpha = clampOpacity(contentOpacity * 0.76, 0, 1)
   const hoverAlpha = clampOpacity(contentOpacity * 0.9, 0, 1)
   const borderAlpha = clampOpacity(contentOpacity * (isDark ? 0.18 : 0.14), 0, 1)
@@ -2166,6 +2183,7 @@ function buildPanelAppearance({
   const deepSoft = [17, 26, 42] as const
   const light = [255, 255, 255] as const
   const lightSoft = [242, 246, 252] as const
+  const iconShellRgb = hexToRgb(iconShellColor) ?? light
   const baseLayer =
     backgroundAlpha === 0
       ? 'transparent'
@@ -2212,7 +2230,7 @@ function buildPanelAppearance({
       textStrong: '#F5F8FD',
       textSoft: '#D5DDEC',
       textMuted: '#93A4BD',
-      iconShellBg: 'rgba(255,255,255,0.94)',
+      iconShellBg: toRgba(iconShellRgb, iconShellAlpha),
       iconShellShadow: '0 10px 24px rgba(2, 6, 23, 0.24)',
       settingsButtonBg: toRgba(deepSoft, contentAlpha),
       settingsButtonBorder: toRgba(light, 0.12),
@@ -2254,7 +2272,7 @@ function buildPanelAppearance({
     textStrong: '#0F172A',
     textSoft: '#475569',
     textMuted: '#94A3B8',
-    iconShellBg: 'rgba(255,255,255,0.94)',
+    iconShellBg: toRgba(iconShellRgb, iconShellAlpha),
     iconShellShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
     settingsButtonBg: toRgba(light, contentAlpha),
     settingsButtonBorder: 'rgba(15,23,42,0.08)',
@@ -2271,6 +2289,25 @@ function buildPanelAppearance({
 
 function toRgba(color: readonly [number, number, number], alpha: number) {
   return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${clampOpacity(alpha, 0, 1)})`
+}
+
+function hexToRgb(value: string): readonly [number, number, number] | null {
+  const trimmed = value.trim().replace(/^#/, '')
+
+  if (/^[0-9a-fA-F]{3}$/.test(trimmed)) {
+    const [r, g, b] = trimmed.split('').map((character) => Number.parseInt(character + character, 16))
+    return [r, g, b]
+  }
+
+  if (/^[0-9a-fA-F]{6}$/.test(trimmed)) {
+    return [
+      Number.parseInt(trimmed.slice(0, 2), 16),
+      Number.parseInt(trimmed.slice(2, 4), 16),
+      Number.parseInt(trimmed.slice(4, 6), 16),
+    ]
+  }
+
+  return null
 }
 
 function clampOpacity(value: number, min: number, max: number) {

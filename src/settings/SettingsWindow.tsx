@@ -67,6 +67,8 @@ function SettingsWindow() {
       draft.sidebarOpacity !== settingsState.sidebarOpacity ||
       draft.contentOpacity !== settingsState.contentOpacity ||
       draft.backgroundOpacity !== settingsState.backgroundOpacity ||
+      draft.iconShellColor !== settingsState.iconShellColor ||
+      draft.iconShellOpacity !== settingsState.iconShellOpacity ||
       draft.transparentDragonHeader !== settingsState.transparentDragonHeader ||
       draft.showCategoryCounts !== settingsState.showCategoryCounts ||
       draft.showIconTitles !== settingsState.showIconTitles ||
@@ -141,6 +143,8 @@ function SettingsWindow() {
         sidebarOpacity: clampNumber(draft.sidebarOpacity, 0, 100),
         contentOpacity: clampNumber(draft.contentOpacity, 0, 100),
         backgroundOpacity: clampNumber(draft.backgroundOpacity, 0, 100),
+        iconShellColor: normalizeHexColor(draft.iconShellColor),
+        iconShellOpacity: clampNumber(draft.iconShellOpacity, 0, 100),
       })
       await emit('orvex://settings-updated')
     } catch (caughtError) {
@@ -427,6 +431,19 @@ function SettingsWindow() {
                   onChange={(value) => updateDraft({ backgroundOpacity: value })}
                 />
               </SettingRow>
+              <SettingRow label="图标小背景">
+                <div className="flex flex-col items-end gap-2">
+                  <ColorOpacityControl
+                    color={draft.iconShellColor}
+                    opacity={draft.iconShellOpacity}
+                    onColorChange={(value) => updateDraft({ iconShellColor: value })}
+                    onOpacityChange={(value) => updateDraft({ iconShellOpacity: value })}
+                  />
+                  <p className="text-right text-[12px] text-[#999999]">
+                    独立控制图标外壳的颜色与透明度，不影响卡片本身。
+                  </p>
+                </div>
+              </SettingRow>
               <SettingRow label="龙之题头透明">
                 <SettingField hint="开启后，顶部题头会和背景、内容区自然贴合在一起。">
                   <Toggle
@@ -687,6 +704,45 @@ function TypographyControl({
           value={toColorInputValue(color)}
           onChange={(event) => onColorChange(event.target.value)}
           className="h-9 w-[118px] rounded-[10px] border border-[#dddddd] bg-white px-3 text-[12px] uppercase tracking-[0.08em] text-[#444444] outline-none"
+        />
+      </div>
+    </div>
+  )
+}
+
+function ColorOpacityControl({
+  color,
+  opacity,
+  onColorChange,
+  onOpacityChange,
+}: {
+  color: string
+  opacity: number
+  onColorChange: (value: string) => void
+  onOpacityChange: (value: number) => void
+}) {
+  return (
+    <div className="w-full max-w-[420px] rounded-[14px] border border-[#ededed] bg-[#fafafa] px-4 py-4">
+      <div className="flex items-center gap-3">
+        <label className="relative block h-10 w-10 shrink-0 cursor-pointer overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
+          <div className="absolute inset-1 rounded-[8px]" style={{ backgroundColor: normalizeHexColor(color) }} />
+          <input
+            type="color"
+            value={toColorInputValue(color)}
+            onChange={(event) => onColorChange(event.target.value)}
+            className="absolute inset-0 cursor-pointer opacity-0"
+          />
+        </label>
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-[#222222]">{normalizeHexColor(color)}</p>
+          <p className="text-[12px] text-[#777777]">点击色块换颜色</p>
+        </div>
+      </div>
+      <div className="mt-3">
+        <SliderInput
+          value={opacity}
+          suffix="%"
+          onChange={(value) => onOpacityChange(clampNumber(value, 0, 100))}
         />
       </div>
     </div>
