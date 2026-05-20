@@ -67,6 +67,9 @@ function SettingsWindow() {
       draft.sidebarOpacity !== settingsState.sidebarOpacity ||
       draft.contentOpacity !== settingsState.contentOpacity ||
       draft.backgroundOpacity !== settingsState.backgroundOpacity ||
+      draft.categoryHighlightEnabled !== settingsState.categoryHighlightEnabled ||
+      draft.categoryHighlightColor !== settingsState.categoryHighlightColor ||
+      draft.categoryHighlightOpacity !== settingsState.categoryHighlightOpacity ||
       draft.itemCardColor !== settingsState.itemCardColor ||
       draft.itemCardOpacity !== settingsState.itemCardOpacity ||
       draft.iconShellColor !== settingsState.iconShellColor ||
@@ -146,6 +149,9 @@ function SettingsWindow() {
         sidebarOpacity: clampNumber(draft.sidebarOpacity, 0, 100),
         contentOpacity: clampNumber(draft.contentOpacity, 0, 100),
         backgroundOpacity: clampNumber(draft.backgroundOpacity, 0, 100),
+        categoryHighlightEnabled: draft.categoryHighlightEnabled,
+        categoryHighlightColor: normalizeHexColor(draft.categoryHighlightColor),
+        categoryHighlightOpacity: clampNumber(draft.categoryHighlightOpacity, 0, 100),
         itemCardColor: normalizeHexColor(draft.itemCardColor),
         itemCardOpacity: clampNumber(draft.itemCardOpacity, 0, 100),
         iconShellColor: normalizeHexColor(draft.iconShellColor),
@@ -435,6 +441,24 @@ function SettingsWindow() {
                   value={draft.backgroundOpacity}
                   onChange={(value) => updateDraft({ backgroundOpacity: value })}
                 />
+              </SettingRow>
+              <SettingRow label="分类高亮背景">
+                <SettingField hint="为当前选中的分类增加一层独立高亮背景。">
+                  <div className="flex min-w-[320px] flex-col items-end gap-3">
+                    <Toggle
+                      checked={draft.categoryHighlightEnabled}
+                      onChange={(checked) => updateDraft({ categoryHighlightEnabled: checked })}
+                    />
+                    <ColorOpacityControl
+                      color={draft.categoryHighlightColor}
+                      opacity={draft.categoryHighlightOpacity}
+                      onColorChange={(value) => updateDraft({ categoryHighlightColor: value })}
+                      onOpacityChange={(value) =>
+                        updateDraft({ categoryHighlightOpacity: value })
+                      }
+                    />
+                  </div>
+                </SettingField>
               </SettingRow>
               <SettingRow label="应用块背景">
                 <div className="flex flex-col items-end gap-2">

@@ -64,6 +64,11 @@ pub struct SettingsState {
   pub sidebar_opacity: u8,
   pub content_opacity: u8,
   pub background_opacity: u8,
+  pub category_highlight_enabled: bool,
+  #[serde(default = "default_category_highlight_color")]
+  pub category_highlight_color: String,
+  #[serde(default = "default_category_highlight_opacity")]
+  pub category_highlight_opacity: u8,
   #[serde(default = "default_item_card_color")]
   pub item_card_color: String,
   #[serde(default = "default_item_card_opacity")]
@@ -204,6 +209,9 @@ pub struct UpdateSettingsPayload {
   pub sidebar_opacity: u8,
   pub content_opacity: u8,
   pub background_opacity: u8,
+  pub category_highlight_enabled: bool,
+  pub category_highlight_color: String,
+  pub category_highlight_opacity: u8,
   pub item_card_color: String,
   pub item_card_opacity: u8,
   pub icon_shell_color: String,
@@ -490,6 +498,9 @@ impl SettingsState {
       sidebar_opacity: 92,
       content_opacity: 92,
       background_opacity: 88,
+      category_highlight_enabled: false,
+      category_highlight_color: default_category_highlight_color(),
+      category_highlight_opacity: default_category_highlight_opacity(),
       item_card_color: default_item_card_color(),
       item_card_opacity: default_item_card_opacity(),
       icon_shell_color: default_icon_shell_color(),
@@ -569,6 +580,14 @@ fn default_icon_shell_color() -> String {
 
 fn default_item_card_color() -> String {
   "#ffffff".into()
+}
+
+fn default_category_highlight_color() -> String {
+  "#ffffff".into()
+}
+
+fn default_category_highlight_opacity() -> u8 {
+  82
 }
 
 fn default_item_card_opacity() -> u8 {

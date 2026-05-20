@@ -308,6 +308,10 @@ impl StorageState {
     settings.sidebar_opacity = payload.sidebar_opacity.clamp(0, 100);
     settings.content_opacity = payload.content_opacity.clamp(0, 100);
     settings.background_opacity = payload.background_opacity.clamp(0, 100);
+    settings.category_highlight_enabled = payload.category_highlight_enabled;
+    settings.category_highlight_color =
+      normalize_hex_color(&payload.category_highlight_color, "#ffffff");
+    settings.category_highlight_opacity = payload.category_highlight_opacity.clamp(0, 100);
     settings.item_card_color = normalize_hex_color(&payload.item_card_color, "#ffffff");
     settings.item_card_opacity = payload.item_card_opacity.clamp(0, 100);
     settings.icon_shell_color = normalize_hex_color(&payload.icon_shell_color, "#ffffff");

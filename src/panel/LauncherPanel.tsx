@@ -332,6 +332,9 @@ function LauncherPanel() {
   const frostedGlassEnabled = effectiveSettings?.frostedGlass !== false
   const frostedGlassStrength = effectiveSettings?.frostedGlassStrength ?? 14
   const transparentDragonHeader = effectiveSettings?.transparentDragonHeader === true
+  const categoryHighlightEnabled = effectiveSettings?.categoryHighlightEnabled === true
+  const categoryHighlightColor = effectiveSettings?.categoryHighlightColor ?? '#ffffff'
+  const categoryHighlightOpacity = effectiveSettings?.categoryHighlightOpacity ?? 82
   const itemCardColor = effectiveSettings?.itemCardColor ?? '#ffffff'
   const itemCardOpacity = effectiveSettings?.itemCardOpacity ?? 78
   const iconShellColor = effectiveSettings?.iconShellColor ?? '#ffffff'
@@ -1303,8 +1306,14 @@ function LauncherPanel() {
                 )
                 const categoryFontSizeValue = pianoMotion.fontSize
                 const categoryTitleColor = categoryFontColor
-                const categoryTitleWeight = isActive || isRenaming || index === hoveredCategoryIndex ? 600 : 400
+                const isHovered = index === hoveredCategoryIndex
+                const isHighlighted = isActive || isHovered
+                const categoryTitleWeight = isHighlighted || isRenaming ? 600 : 400
                 const shouldShowCount = showCategoryCounts && category.count > 0
+                const categoryHighlightBackground =
+                  categoryHighlightEnabled && isHighlighted
+                    ? toRgba(hexToRgb(categoryHighlightColor) ?? [255, 255, 255], categoryHighlightOpacity / 100)
+                    : 'transparent'
                 const rowClass = [
                   'relative flex w-full items-center justify-between rounded-[12px] px-3 text-left transition-[height] duration-150 ease',
                 ].join(' ')
@@ -1316,7 +1325,15 @@ function LauncherPanel() {
                       data-category-item="true"
                       data-category-index={index}
                       className={rowClass}
-                      style={{ color: categoryFontColor, height: `${pianoMotion.height}px` }}
+                      style={{
+                        color: categoryFontColor,
+                        height: `${pianoMotion.height}px`,
+                        backgroundColor: categoryHighlightBackground,
+                        boxShadow:
+                          categoryHighlightEnabled && isHighlighted
+                            ? 'inset 0 0 0 1px rgba(255,255,255,0.18), 0 10px 24px rgba(15,23,42,0.08)'
+                            : 'none',
+                      }}
                     >
                       <span
                         className="absolute left-0 top-1.5 h-6 w-[2px]"
@@ -1361,7 +1378,15 @@ function LauncherPanel() {
                       data-category-item="true"
                       data-category-index={index}
                       className={rowClass}
-                      style={{ color: categoryTitleColor, height: `${pianoMotion.height}px` }}
+                      style={{
+                        color: categoryTitleColor,
+                        height: `${pianoMotion.height}px`,
+                        backgroundColor: categoryHighlightBackground,
+                        boxShadow:
+                          categoryHighlightEnabled && isHighlighted
+                            ? 'inset 0 0 0 1px rgba(255,255,255,0.18), 0 10px 24px rgba(15,23,42,0.08)'
+                            : 'none',
+                      }}
                       onClick={() => setSelectedCategoryId(category.id)}
                       onContextMenu={(event) => handleCategoryContextMenu(event, category)}
                     >

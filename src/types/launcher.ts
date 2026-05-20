@@ -66,6 +66,9 @@ export type SettingsState = {
   sidebarOpacity: number
   contentOpacity: number
   backgroundOpacity: number
+  categoryHighlightEnabled: boolean
+  categoryHighlightColor: string
+  categoryHighlightOpacity: number
   itemCardColor: string
   itemCardOpacity: number
   iconShellColor: string
@@ -139,6 +142,9 @@ export type UpdateSettingsPayload = {
   sidebarOpacity: number
   contentOpacity: number
   backgroundOpacity: number
+  categoryHighlightEnabled: boolean
+  categoryHighlightColor: string
+  categoryHighlightOpacity: number
   itemCardColor: string
   itemCardOpacity: number
   iconShellColor: string
