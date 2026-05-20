@@ -1299,15 +1299,12 @@ function LauncherPanel() {
               {categories.map((category, index) => {
                 const isActive = category.id === activeCategory.id
                 const isRenaming = renamingCategoryId === category.id
-                const pianoMotion = getCategoryPianoMotion(
-                  index,
-                  hoveredCategoryIndex,
-                  categoryFontSize,
-                )
-                const categoryFontSizeValue = pianoMotion.fontSize
                 const categoryTitleColor = categoryFontColor
                 const isHovered = index === hoveredCategoryIndex
                 const isHighlighted = isActive || isHovered
+                const categoryFontSizeValue = isHighlighted
+                  ? Math.min(categoryFontSize + 1, 18)
+                  : categoryFontSize
                 const categoryTitleWeight = isHighlighted || isRenaming ? 600 : 400
                 const shouldShowCount = showCategoryCounts && category.count > 0
                 const categoryHighlightBackground =
@@ -1315,7 +1312,7 @@ function LauncherPanel() {
                     ? toRgba(hexToRgb(categoryHighlightColor) ?? [255, 255, 255], categoryHighlightOpacity / 100)
                     : 'transparent'
                 const rowClass = [
-                  'relative flex w-full items-center justify-between rounded-[12px] px-3 text-left transition-[height] duration-150 ease',
+                  'relative flex h-10 w-full items-center justify-between rounded-[12px] px-3 text-left transition duration-150 ease',
                 ].join(' ')
 
                 if (isRenaming) {
@@ -1327,7 +1324,6 @@ function LauncherPanel() {
                       className={rowClass}
                       style={{
                         color: categoryFontColor,
-                        height: `${pianoMotion.height}px`,
                         backgroundColor: categoryHighlightBackground,
                         boxShadow:
                           categoryHighlightEnabled && isHighlighted
@@ -1380,7 +1376,6 @@ function LauncherPanel() {
                       className={rowClass}
                       style={{
                         color: categoryTitleColor,
-                        height: `${pianoMotion.height}px`,
                         backgroundColor: categoryHighlightBackground,
                         boxShadow:
                           categoryHighlightEnabled && isHighlighted
@@ -2270,18 +2265,6 @@ function formatClock(date: Date) {
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
   return `${hours}:${minutes}`
-}
-
-function getCategoryPianoMotion(
-  index: number,
-  hoveredIndex: number | null,
-  baseFontSize: number,
-) {
-  if (hoveredIndex === null || index !== hoveredIndex) {
-    return { fontSize: baseFontSize, height: 40 }
-  }
-
-  return { fontSize: Math.max(baseFontSize, 17), height: 48 }
 }
 
 function buildPreviewItems(
