@@ -71,6 +71,11 @@ type UrlProjectDialogState = {
   categoryTitle: string
 }
 
+type RenameItemDialogState = {
+  open: boolean
+  item: LauncherItem | null
+}
+
 type SystemProjectOption = {
   id: string
   group: string
@@ -240,6 +245,7 @@ function LauncherPanel() {
     addLauncherItem,
     addLauncherItemFromPath,
     editCategory,
+    editLauncherItem,
     removeCategory,
     removeLauncherItem,
     openItemLocation,
@@ -294,6 +300,11 @@ function LauncherPanel() {
     categoryId: '',
     categoryTitle: '',
   })
+  const [renameItemDialog, setRenameItemDialog] = useState<RenameItemDialogState>({
+    open: false,
+    item: null,
+  })
+  const [renameItemDraft, setRenameItemDraft] = useState('')
   const [urlProjectName, setUrlProjectName] = useState('')
   const [urlProjectAddress, setUrlProjectAddress] = useState('')
   const [hoveredCategoryIndex, setHoveredCategoryIndex] = useState<number | null>(null)
@@ -1115,6 +1126,52 @@ function LauncherPanel() {
     }
   }
 
+  function closeRenameItemDialog() {
+    setRenameItemDialog({ open: false, item: null })
+    setRenameItemDraft('')
+  }
+
+  function openRenameItemDialog(item: LauncherItem) {
+    setItemMenu({ open: false, x: 0, y: 0, item: null })
+    setRenameItemDialog({ open: true, item })
+    setRenameItemDraft(item.name)
+  }
+
+  async function handleRenameItem() {
+    const item = renameItemDialog.item
+    const nextName = renameItemDraft.trim()
+
+    if (!item || !nextName) {
+      return
+    }
+
+    if (nextName === item.name) {
+      closeRenameItemDialog()
+      return
+    }
+
+    try {
+      await editLauncherItem({
+        id: item.id,
+        order: item.order,
+        categoryId: item.categoryId,
+        name: nextName,
+        alias: item.alias,
+        kind: item.kind,
+        summary: item.summary,
+        path: item.path,
+        iconSourcePath: null,
+        hotkey: item.hotkey,
+        usage: item.usage,
+        monogram: buildMonogram(nextName, item.monogram),
+        accent: item.accent,
+      })
+      closeRenameItemDialog()
+    } catch (caughtError) {
+      console.error('修改启动项名称失败', caughtError)
+    }
+  }
+
   async function handleReorderDrop(targetItemId: string) {
     if (!dragSortItemIdRef.current || dragSortItemIdRef.current === targetItemId || !launcherState) {
       setDragSortState({ active: false, itemId: '' })
@@ -1537,6 +1594,12 @@ function LauncherPanel() {
         {itemMenu.open && itemMenu.item ? (
           <ContextMenu x={itemMenu.x} y={itemMenu.y}>
             <ContextMenuItem
+              label="修改显示名称"
+              onClick={() => {
+                openRenameItemDialog(itemMenu.item!)
+              }}
+            />
+            <ContextMenuItem
               label="管理员方式运行"
               disabled={itemMenu.item.kind !== 'app'}
               onClick={() => {
@@ -1619,6 +1682,18 @@ function LauncherPanel() {
             }}
             onSubmit={() => {
               void handleCreateUrlProject()
+            }}
+          />
+        ) : null}
+
+        {renameItemDialog.open && renameItemDialog.item ? (
+          <RenameItemDialog
+            item={renameItemDialog.item}
+            value={renameItemDraft}
+            onChange={setRenameItemDraft}
+            onClose={closeRenameItemDialog}
+            onSubmit={() => {
+              void handleRenameItem()
             }}
           />
         ) : null}
@@ -1922,6 +1997,91 @@ function UrlProjectDialog({
             onClick={onSubmit}
           >
             添加项目
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RenameItemDialog({
+  item,
+  value,
+  onChange,
+  onClose,
+  onSubmit,
+}: {
+  item: LauncherItem
+  value: string
+  onChange: (value: string) => void
+  onClose: () => void
+  onSubmit: () => void
+}) {
+  const trimmedValue = value.trim()
+
+  return (
+    <div
+      className="absolute inset-0 z-[120] flex items-center justify-center px-6 py-8"
+      style={{ background: 'rgba(7, 15, 28, 0.22)', backdropFilter: 'blur(10px)' }}
+    >
+      <div className="w-full max-w-[460px] overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.42)] bg-[linear-gradient(180deg,rgba(253,254,255,0.92)_0%,rgba(246,249,253,0.86)_100%)] shadow-[0_30px_80px_rgba(15,23,42,0.18)] backdrop-blur-[20px]">
+        <div className="border-b border-[rgba(15,23,42,0.08)] px-6 py-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6b7a90]">
+            Display Name
+          </p>
+          <h2 className="mt-2 text-[24px] font-semibold tracking-[-0.03em] text-[#132238]">
+            修改显示名称
+          </h2>
+          <p className="mt-2 text-[13px] leading-6 text-[#5f6f83]">
+            仅修改 Orvex 面板中的显示名称，不会影响原文件或快捷方式。
+          </p>
+        </div>
+
+        <div className="space-y-4 px-6 py-5">
+          <div className="rounded-[16px] border border-[rgba(148,163,184,0.18)] bg-white/70 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8a97aa]">当前路径</p>
+            <p className="mt-1 truncate text-[12px] text-[#314155]" title={item.path}>
+              {item.path}
+            </p>
+          </div>
+
+          <label className="block">
+            <span className="mb-2 block text-[13px] font-medium text-[#324155]">新的显示名称</span>
+            <input
+              value={value}
+              autoFocus
+              onChange={(event) => onChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && trimmedValue) {
+                  event.preventDefault()
+                  onSubmit()
+                }
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  onClose()
+                }
+              }}
+              placeholder="输入新的显示名称"
+              className="h-12 w-full rounded-[14px] border border-[rgba(148,163,184,0.24)] bg-white/82 px-4 text-[15px] text-[#132238] outline-none transition placeholder:text-[#9aa6b8] focus:border-[rgba(37,99,235,0.42)] focus:bg-white focus:shadow-[0_0_0_4px_rgba(59,130,246,0.12)]"
+            />
+          </label>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t border-[rgba(15,23,42,0.08)] px-6 py-4">
+          <button
+            type="button"
+            className="rounded-[10px] border border-[rgba(15,23,42,0.08)] bg-white/72 px-4 py-2 text-[13px] font-medium text-[#334155] transition hover:bg-white"
+            onClick={onClose}
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            disabled={!trimmedValue}
+            className="rounded-[10px] bg-[#162033] px-4 py-2 text-[13px] font-medium text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] transition hover:bg-[#0f172a] disabled:cursor-not-allowed disabled:bg-[#94a3b8] disabled:shadow-none"
+            onClick={onSubmit}
+          >
+            保存名称
           </button>
         </div>
       </div>
@@ -2331,6 +2491,18 @@ function hexToRgb(value: string): readonly [number, number, number] | null {
   }
 
   return null
+}
+
+function buildMonogram(name: string, fallback: string) {
+  const monogram = name
+    .trim()
+    .split('')
+    .filter((character) => !/\s|[-_]/.test(character))
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+
+  return monogram || fallback
 }
 
 function clampOpacity(value: number, min: number, max: number) {

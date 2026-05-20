@@ -386,6 +386,7 @@ impl LauncherState {
 
   pub fn update_item(&mut self, payload: UpdateLauncherItemPayload) -> bool {
     if let Some(item) = self.items.iter_mut().find(|item| item.id == payload.id) {
+      let previous_icon_path = item.icon_path.clone();
       item.order = payload.order;
       item.category_id = payload.category_id;
       item.name = payload.name;
@@ -393,7 +394,7 @@ impl LauncherState {
       item.kind = payload.kind;
       item.summary = payload.summary;
       item.path = payload.path;
-      item.icon_path = None;
+      item.icon_path = previous_icon_path;
       item.hotkey = payload.hotkey;
       item.usage = payload.usage;
       item.monogram = payload.monogram;
