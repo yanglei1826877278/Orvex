@@ -342,6 +342,10 @@ function LauncherPanel() {
   const appearanceSettings = effectiveSettings?.appearance
   const categoryFontSize = appearanceSettings?.category_font_size ?? 14
   const categoryFontColor = appearanceSettings?.category_font_color ?? '#333333'
+  const categoryHighlightRadius = Math.max(
+    0,
+    Math.min(appearanceSettings?.category_highlight_radius ?? 12, 24),
+  )
   const itemFontSize = appearanceSettings?.item_font_size ?? 13
   const itemFontColor = appearanceSettings?.item_font_color ?? '#333333'
   const searchPlaceholderColor = appearanceSettings?.search_placeholder_color ?? '#94a3b8'
@@ -1298,7 +1302,7 @@ function LauncherPanel() {
             <div className="min-h-0 flex-1 overflow-hidden">
               <div
                 ref={categoryListRef}
-                className="sidebar-scrollbar h-full space-y-1 overflow-y-auto pr-1"
+                className="sidebar-scrollbar h-full space-y-0.5 overflow-y-auto pr-1"
               >
               {categories.map((category, index) => {
                 const isActive = category.id === activeCategory.id
@@ -1311,13 +1315,13 @@ function LauncherPanel() {
                   : categoryFontSize
                 const categoryTitleWeight = isHighlighted || isRenaming ? 600 : 400
                 const shouldShowCount = showCategoryCounts && category.count > 0
-                const categoryHighlightBackground =
-                  categoryHighlightEnabled && isHighlighted
-                    ? toRgba(hexToRgb(categoryHighlightColor) ?? [255, 255, 255], categoryHighlightOpacity / 100)
-                    : 'transparent'
-                const rowClass = [
-                  'relative flex h-10 w-full items-center justify-between rounded-[12px] px-3 text-left transition duration-150 ease',
-                ].join(' ')
+                  const categoryHighlightBackground =
+                    categoryHighlightEnabled && isHighlighted
+                      ? toRgba(hexToRgb(categoryHighlightColor) ?? [255, 255, 255], categoryHighlightOpacity / 100)
+                      : 'transparent'
+                  const rowClass = [
+                    'relative flex h-9 w-full items-center justify-between rounded-[12px] px-3 text-left transition duration-150 ease',
+                  ].join(' ')
 
                 if (isRenaming) {
                   return (
@@ -1329,6 +1333,7 @@ function LauncherPanel() {
                       style={{
                         color: categoryFontColor,
                         backgroundColor: categoryHighlightBackground,
+                        borderRadius: `${categoryHighlightRadius}px`,
                         boxShadow:
                           categoryHighlightEnabled && isHighlighted
                             ? 'inset 0 0 0 1px rgba(255,255,255,0.18), 0 10px 24px rgba(15,23,42,0.08)'
@@ -1381,6 +1386,7 @@ function LauncherPanel() {
                       style={{
                         color: categoryTitleColor,
                         backgroundColor: categoryHighlightBackground,
+                        borderRadius: `${categoryHighlightRadius}px`,
                         boxShadow:
                           categoryHighlightEnabled && isHighlighted
                             ? 'inset 0 0 0 1px rgba(255,255,255,0.18), 0 10px 24px rgba(15,23,42,0.08)'
@@ -1425,8 +1431,11 @@ function LauncherPanel() {
               {creatingCategory ? (
                 <div
                   data-category-create="true"
-                  className="relative flex h-9 w-full items-center rounded-[12px] px-3 text-[13px] text-[var(--panel-text-strong)]"
-                  style={{ backgroundColor: panelAppearance.rowActiveBg }}
+                  className="relative flex h-8 w-full items-center rounded-[12px] px-3 text-[13px] text-[var(--panel-text-strong)]"
+                  style={{
+                    backgroundColor: panelAppearance.rowActiveBg,
+                    borderRadius: `${categoryHighlightRadius}px`,
+                  }}
                 >
                   <span
                     className="absolute left-0 top-1.5 h-6 w-[3px] rounded-r-full"

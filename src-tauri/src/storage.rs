@@ -320,6 +320,8 @@ impl StorageState {
     settings.appearance.category_font_size = payload.appearance.category_font_size.clamp(12, 18);
     settings.appearance.category_font_color =
       normalize_hex_color(&payload.appearance.category_font_color, "#333333");
+    settings.appearance.category_highlight_radius =
+      payload.appearance.category_highlight_radius.clamp(0, 24);
     settings.appearance.item_font_size = payload.appearance.item_font_size.clamp(11, 16);
     settings.appearance.item_font_color =
       normalize_hex_color(&payload.appearance.item_font_color, "#333333");

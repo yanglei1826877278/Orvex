@@ -79,6 +79,8 @@ function SettingsWindow() {
       draft.showIconTitles !== settingsState.showIconTitles ||
       draft.appearance.category_font_size !== settingsState.appearance.category_font_size ||
       draft.appearance.category_font_color !== settingsState.appearance.category_font_color ||
+      draft.appearance.category_highlight_radius !==
+        settingsState.appearance.category_highlight_radius ||
       draft.appearance.item_font_size !== settingsState.appearance.item_font_size ||
       draft.appearance.item_font_color !== settingsState.appearance.item_font_color ||
       draft.appearance.search_placeholder_color !== settingsState.appearance.search_placeholder_color
@@ -156,6 +158,21 @@ function SettingsWindow() {
         itemCardOpacity: clampNumber(draft.itemCardOpacity, 0, 100),
         iconShellColor: normalizeHexColor(draft.iconShellColor),
         iconShellOpacity: clampNumber(draft.iconShellOpacity, 0, 100),
+        appearance: {
+          ...draft.appearance,
+          category_font_size: clampNumber(draft.appearance.category_font_size, 12, 18),
+          category_font_color: normalizeHexColor(draft.appearance.category_font_color),
+          category_highlight_radius: clampNumber(
+            draft.appearance.category_highlight_radius,
+            0,
+            24,
+          ),
+          item_font_size: clampNumber(draft.appearance.item_font_size, 11, 16),
+          item_font_color: normalizeHexColor(draft.appearance.item_font_color),
+          search_placeholder_color: normalizeHexColor(
+            draft.appearance.search_placeholder_color,
+          ),
+        },
       })
       await emit('orvex://settings-updated')
     } catch (caughtError) {
@@ -457,6 +474,32 @@ function SettingsWindow() {
                         updateDraft({ categoryHighlightOpacity: value })
                       }
                     />
+                    <div className="w-full max-w-[420px] rounded-[14px] border border-[#ededed] bg-[#fafafa] px-4 py-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[13px] font-semibold text-[#222222]">
+                            高亮圆角
+                          </p>
+                          <p className="text-[12px] text-[#777777]">0 为直角</p>
+                        </div>
+                        <span className="text-[12px] text-[#666666]">
+                          {draft.appearance.category_highlight_radius}px
+                        </span>
+                      </div>
+                      <div className="mt-3">
+                        <SliderInput
+                          value={draft.appearance.category_highlight_radius}
+                          min={0}
+                          max={24}
+                          suffix="px"
+                          onChange={(value) =>
+                            updateAppearanceDraft({
+                              category_highlight_radius: value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
                   </div>
                 </SettingField>
               </SettingRow>

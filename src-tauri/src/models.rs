@@ -92,6 +92,7 @@ pub struct SettingsState {
 pub struct AppearanceSettings {
   pub category_font_size: u8,
   pub category_font_color: String,
+  pub category_highlight_radius: u8,
   pub item_font_size: u8,
   pub item_font_color: String,
   pub search_placeholder_color: String,
@@ -509,6 +510,7 @@ impl SettingsState {
       appearance: AppearanceSettings {
         category_font_size: 14,
         category_font_color: "#333333".into(),
+        category_highlight_radius: 12,
         item_font_size: 13,
         item_font_color: "#333333".into(),
         search_placeholder_color: "#94a3b8".into(),
@@ -543,6 +545,7 @@ impl Default for AppearanceSettings {
     Self {
       category_font_size: 14,
       category_font_color: "#333333".into(),
+      category_highlight_radius: 12,
       item_font_size: 13,
       item_font_color: "#333333".into(),
       search_placeholder_color: "#94a3b8".into(),

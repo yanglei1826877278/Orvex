@@ -47,6 +47,7 @@ export type HotkeySetting = {
 export type AppearanceSettings = {
   category_font_size: number
   category_font_color: string
+  category_highlight_radius: number
   item_font_size: number
   item_font_color: string
   search_placeholder_color: string
