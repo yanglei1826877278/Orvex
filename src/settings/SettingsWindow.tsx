@@ -77,7 +77,8 @@ function SettingsWindow() {
       draft.appearance.category_font_size !== settingsState.appearance.category_font_size ||
       draft.appearance.category_font_color !== settingsState.appearance.category_font_color ||
       draft.appearance.item_font_size !== settingsState.appearance.item_font_size ||
-      draft.appearance.item_font_color !== settingsState.appearance.item_font_color
+      draft.appearance.item_font_color !== settingsState.appearance.item_font_color ||
+      draft.appearance.search_placeholder_color !== settingsState.appearance.search_placeholder_color
 
     if (!hasChanged) {
       return
@@ -505,6 +506,13 @@ function SettingsWindow() {
                     onSizeChange={(value) => updateAppearanceDraft({ item_font_size: value })}
                     onColorChange={(value) => updateAppearanceDraft({ item_font_color: value })}
                   />
+                  <ColorControl
+                    label="搜索提示文字"
+                    color={draft.appearance.search_placeholder_color}
+                    onColorChange={(value) =>
+                      updateAppearanceDraft({ search_placeholder_color: value })
+                    }
+                  />
                 </div>
               </SettingRow>
             </SettingsGroup>
@@ -682,6 +690,63 @@ function TypographyControl({
         />
         <span className="w-12 text-right text-[12px] text-[#666666]">{value}px</span>
       </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {fontColorPresets.map((preset) => {
+          const isActive = normalizeHexColor(preset) === normalizeHexColor(color)
+          return (
+            <button
+              key={preset}
+              type="button"
+              aria-label={`选择颜色 ${preset}`}
+              title={preset}
+              onClick={() => onColorChange(preset)}
+              className="h-6 w-6 rounded-full transition"
+              style={{
+                backgroundColor: preset,
+                boxShadow: isActive ? `0 0 0 2px #ffffff, 0 0 0 4px ${preset}` : 'none',
+              }}
+            />
+          )
+        })}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[12px] text-[#777777]">自定义</span>
+          <label
+            className="relative block h-9 w-9 cursor-pointer overflow-hidden rounded-full border border-[#d9d9d9] bg-white"
+            style={{ boxShadow: `inset 0 0 0 6px ${normalizeHexColor(color)}` }}
+          >
+            <input
+              type="color"
+              value={toColorInputValue(color)}
+              onChange={(event) => onColorChange(event.target.value)}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
+          </label>
+        </div>
+        <input
+          type="text"
+          value={toColorInputValue(color)}
+          onChange={(event) => onColorChange(event.target.value)}
+          className="h-9 w-[118px] rounded-[10px] border border-[#dddddd] bg-white px-3 text-[12px] uppercase tracking-[0.08em] text-[#444444] outline-none"
+        />
+      </div>
+    </div>
+  )
+}
+
+function ColorControl({
+  label,
+  color,
+  onColorChange,
+}: {
+  label: string
+  color: string
+  onColorChange: (value: string) => void
+}) {
+  return (
+    <div className="rounded-[14px] border border-[#ededed] bg-[#fafafa] px-4 py-4">
+      <p className="text-[13px] font-semibold text-[#222222]">{label}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {fontColorPresets.map((preset) => {
           const isActive = normalizeHexColor(preset) === normalizeHexColor(color)

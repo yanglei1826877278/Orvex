@@ -319,6 +319,8 @@ impl StorageState {
     settings.appearance.item_font_size = payload.appearance.item_font_size.clamp(11, 16);
     settings.appearance.item_font_color =
       normalize_hex_color(&payload.appearance.item_font_color, "#333333");
+    settings.appearance.search_placeholder_color =
+      normalize_hex_color(&payload.appearance.search_placeholder_color, "#94a3b8");
     settings.show_category_counts = payload.show_category_counts;
     settings.show_icon_titles = payload.show_icon_titles;
     settings.panel_hotkey = payload.panel_hotkey;

@@ -173,6 +173,11 @@ body,
     background-clip: padding-box;
   }
 
+  .panel-search-input::placeholder {
+    color: var(--panel-search-placeholder);
+    opacity: 1;
+  }
+
   .panel-scrollbar {
     scrollbar-gutter: stable;
     overscroll-behavior: contain;

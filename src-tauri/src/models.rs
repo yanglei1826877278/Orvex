@@ -83,11 +83,13 @@ pub struct SettingsState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct AppearanceSettings {
   pub category_font_size: u8,
   pub category_font_color: String,
   pub item_font_size: u8,
   pub item_font_color: String,
+  pub search_placeholder_color: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -498,6 +500,7 @@ impl SettingsState {
         category_font_color: "#333333".into(),
         item_font_size: 13,
         item_font_color: "#333333".into(),
+        search_placeholder_color: "#94a3b8".into(),
       },
       show_category_counts: true,
       show_icon_titles: true,
@@ -531,6 +534,7 @@ impl Default for AppearanceSettings {
       category_font_color: "#333333".into(),
       item_font_size: 13,
       item_font_color: "#333333".into(),
+      search_placeholder_color: "#94a3b8".into(),
     }
   }
 }

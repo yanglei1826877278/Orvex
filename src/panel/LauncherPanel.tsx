@@ -341,6 +341,7 @@ function LauncherPanel() {
   const categoryFontColor = appearanceSettings?.category_font_color ?? '#333333'
   const itemFontSize = appearanceSettings?.item_font_size ?? 13
   const itemFontColor = appearanceSettings?.item_font_color ?? '#333333'
+  const searchPlaceholderColor = appearanceSettings?.search_placeholder_color ?? '#94a3b8'
   const panelAppearance = useMemo(
     () =>
       buildPanelAppearance({
@@ -352,6 +353,7 @@ function LauncherPanel() {
         itemCardOpacity,
         iconShellColor,
         iconShellOpacity,
+        searchPlaceholderColor,
         hasImageBackground: Boolean(backgroundImageUrl),
       }),
     [
@@ -362,6 +364,7 @@ function LauncherPanel() {
       iconShellColor,
       iconShellOpacity,
       rootBackgroundOpacity,
+      searchPlaceholderColor,
       sidebarOpacity,
       theme,
     ],
@@ -1437,7 +1440,7 @@ function LauncherPanel() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="搜索或直接输入..."
-                  className="w-full rounded-[16px] border px-4 py-3 text-sm outline-none transition placeholder:text-[#888]"
+                  className="panel-search-input w-full rounded-[16px] border px-4 py-3 text-sm outline-none transition"
                   style={{
                     background: panelAppearance.searchSurface,
                     borderColor: panelAppearance.searchBorder,
@@ -2296,6 +2299,7 @@ type PanelAppearanceOptions = {
   itemCardOpacity: number
   iconShellColor: string
   iconShellOpacity: number
+  searchPlaceholderColor: string
   hasImageBackground: boolean
 }
 
@@ -2349,6 +2353,7 @@ function buildPanelAppearance({
   itemCardOpacity,
   iconShellColor,
   iconShellOpacity,
+  searchPlaceholderColor,
   hasImageBackground,
 }: PanelAppearanceOptions): PanelAppearance {
   const isDark = theme === 'dark'
@@ -2398,7 +2403,7 @@ function buildPanelAppearance({
       badgeText: '#C8D2E4',
       searchSurface: toRgba(deepSoft, contentAlpha),
       searchBorder: toRgba(light, borderAlpha),
-      searchPlaceholder: '#90A1BB',
+      searchPlaceholder: searchPlaceholderColor,
       flashBg: toRgba(deep, 0.92),
       flashBorder: toRgba(light, 0.12),
       gridSurface: toRgba(deepSoft, softCardAlpha),
@@ -2440,7 +2445,7 @@ function buildPanelAppearance({
     badgeText: '#64748B',
     searchSurface: toRgba(light, contentAlpha),
     searchBorder: 'rgba(148,163,184,0.2)',
-    searchPlaceholder: '#94A3B8',
+    searchPlaceholder: searchPlaceholderColor,
     flashBg: 'rgba(15,23,42,0.94)',
     flashBorder: 'rgba(15,23,42,0.08)',
     gridSurface: toRgba(light, softCardAlpha),

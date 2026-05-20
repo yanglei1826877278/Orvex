@@ -49,6 +49,7 @@ export type AppearanceSettings = {
   category_font_color: string
   item_font_size: number
   item_font_color: string
+  search_placeholder_color: string
 }
 
 export type SettingsState = {
