@@ -106,12 +106,31 @@ export function WindowFrame({
         <header
           className={[
             'z-40 flex items-center justify-between border-b px-4',
+            'select-none',
             immersiveHeader ? 'absolute inset-x-0 top-0' : 'relative',
             headerHeightClass,
           ].join(' ')}
           style={{
             borderColor: headerBorderColor,
             background: immersiveHeaderBackground,
+          }}
+          onMouseDown={(event) => {
+            if (event.button !== 0) {
+              return
+            }
+
+            const target = event.target as HTMLElement | null
+            if (target?.closest('button, input, textarea, select, a, [contenteditable="true"]')) {
+              return
+            }
+
+            event.preventDefault()
+            if (event.detail === 2) {
+              void toggleMaximizeWindow()
+              return
+            }
+
+            void startWindowDrag()
           }}
         >
           {immersiveHeader ? (
@@ -125,17 +144,6 @@ export function WindowFrame({
               }}
             />
           ) : null}
-
-          <div
-            className="absolute inset-0 z-0"
-            onMouseDown={(event) => {
-              if (event.buttons === 1) {
-                void startWindowDrag()
-              }
-            }}
-            onDoubleClick={() => void toggleMaximizeWindow()}
-            data-tauri-drag-region
-          />
 
           <div className="relative z-10 flex items-center gap-3">
             <div
