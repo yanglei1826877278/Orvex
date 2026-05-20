@@ -209,6 +209,38 @@ body,
       linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(148, 163, 184, 0.72) 100%);
     background-clip: padding-box;
   }
+
+  .sidebar-scrollbar {
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(71, 85, 105, 0.18) transparent;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar {
+    width: 7px;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background: rgba(71, 85, 105, 0.14);
+    background-clip: padding-box;
+  }
+
+  .sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: rgba(71, 85, 105, 0.24);
+    background-clip: padding-box;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(71, 85, 105, 0.34);
+    background-clip: padding-box;
+  }
   }
 
 @layer utilities {

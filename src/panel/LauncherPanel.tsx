@@ -1282,10 +1282,10 @@ function LauncherPanel() {
           }}
         />
 
-        <div className="relative z-10 grid h-full grid-cols-[160px_minmax(0,1fr)]">
+        <div className="relative z-10 grid h-full min-h-0 grid-cols-[160px_minmax(0,1fr)]">
           <aside
             ref={categoryRailRef}
-            className="flex h-full flex-col border-r px-3 py-4"
+            className="flex h-full min-h-0 flex-col border-r px-3 py-4"
             style={{
               background: panelAppearance.sidebarSurface,
               backdropFilter: 'blur(0px)',
@@ -1295,7 +1295,11 @@ function LauncherPanel() {
             onContextMenuCapture={handleSidebarContextMenuCapture}
             onContextMenu={handleSidebarContextMenu}
           >
-            <div ref={categoryListRef} className="space-y-1">
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <div
+                ref={categoryListRef}
+                className="sidebar-scrollbar h-full space-y-1 overflow-y-auto pr-1"
+              >
               {categories.map((category, index) => {
                 const isActive = category.id === activeCategory.id
                 const isRenaming = renamingCategoryId === category.id
@@ -1444,9 +1448,10 @@ function LauncherPanel() {
                   />
                 </div>
               ) : null}
+              </div>
             </div>
 
-            <div className="mt-auto px-4 pt-4">
+            <div className="shrink-0 px-4 pt-4">
               <div className="text-left text-[28px] font-light text-[#555]">
                 {timeText}
               </div>
